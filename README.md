@@ -1,4 +1,4 @@
-# Coral Annotation Tool (CAT) - Lite Web Version Demo
+# Coral Annotation Tool (CAT) - Lite | Web Version Demo
 <a href="https://michaelakridge-noaa.github.io/cat-web-lite/" target="_blank"><img src="./images/logo_lite.png" align="right" alt="logo" width="250"/></a>
 
 A simplified, browser-based coral annotation tool for quick demo & fieldwork with  basic annotation tasks. Works entirely in your browser with no installation required!
@@ -10,9 +10,6 @@ A simplified, browser-based coral annotation tool for quick demo & fieldwork wit
 - **Interactive Map Interface** - Annotate directly on georeferenced COG imagery
 - **Basic Drawing Tools** - Lines, rectangles, and polygons
 - **Import/Export** - Save and load projects as JSON
-
-## Quick Start
-Simply visit: **https://MichaelAkridge-NOAA.github.io/cat-web-lite/**
 
 ## Lite vs Full Version
 
