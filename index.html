@@ -1,0 +1,2873 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CAT: Coral Annotation Tool</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="initial-scale=1.0">
+  
+  <!-- External Dependencies -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.css" />
+  
+  <style>
+    /* ================================================
+       CAT - Coral Annotation Tool - Enhanced Styles
+       ================================================ */
+    
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(180deg, #0a2540 0%, #0d3a5f 100%);
+      min-height: 100vh;
+      overflow: hidden;
+    }
+    
+    /* Map Container */
+    #map {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      width: 100%;
+      height: 100vh;
+      background: #2c2c2c;
+    }
+    
+    /* Navbar */
+    .navbar {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      right: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 8px 15px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 2000;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .navbar h1 {
+      margin: 0;
+      font-size: 16px;
+      color: #333;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      white-space: nowrap;
+      flex-shrink: 0;
+    }
+    
+    .nav-links {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: nowrap;
+    }
+    
+    .nav-links a {
+      color: #667eea;
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 13px;
+      transition: color 0.3s;
+    }
+    
+    .btn {
+      padding: 6px 12px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.3s;
+      text-decoration: none;
+      display: inline-block;
+      white-space: nowrap;
+    }
+    
+    .btn-primary {
+      background: #667eea;
+      color: white;
+    }
+    
+    .btn-primary:hover {
+      background: #5568d3;
+      transform: translateY(-2px);
+    }
+    
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #218838;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-danger {
+      background: #dc3545;
+      color: white;
+    }
+    
+    /* Panels */
+    .panel {
+      position: absolute;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      z-index: 1000;
+      max-height: 80vh;
+      overflow-y: auto;
+    }
+    
+    .panel-header {
+      padding: 10px 15px;
+      background: #667eea;
+      color: white;
+      border-radius: 8px 8px 0 0;
+      font-weight: 600;
+      font-size: 13px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+    }
+    
+    .panel-content {
+      padding: 15px;
+    }
+    
+    .collapsed .panel-content {
+      display: none;
+    }
+    
+    .collapse-icon {
+      transition: transform 0.3s;
+    }
+    
+    .collapsed .collapse-icon {
+      transform: rotate(-90deg);
+    }
+    
+    /* Upload Panel */
+    #uploadPanel {
+      top: 80px;
+      left: 20px;
+      width: 350px;
+    }
+    
+    .drop-zone {
+      border: 2px dashed #667eea;
+      border-radius: 8px;
+      padding: 30px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.3s;
+      background: #f8f9fa;
+    }
+    
+    .drop-zone:hover {
+      background: #e9ecef;
+      border-color: #5568d3;
+    }
+    
+    .drop-zone.drag-over {
+      background: #d1ecf1;
+      border-color: #0c5460;
+    }
+    
+    /* Annotation Form Panel - Bottom Horizontal Layout */
+    #annotationPanel {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      right: 10px;
+      max-height: 55vh;
+      background: white;
+      padding: 10px;
+      border-radius: 8px;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 1000;
+      overflow-y: auto;
+      display: none;
+    }
+    
+    /* Form Container - Horizontal Scroll */
+    .form-container {
+      display: flex;
+      gap: 15px;
+      overflow-x: auto;
+      padding-bottom: 5px;
+      margin-bottom: 10px;
+    }
+    
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      min-width: 120px;
+      flex-shrink: 0;
+    }
+    
+    .form-group.wide {
+      min-width: 180px;
+    }
+    
+    .form-group label {
+      display: block;
+      margin-bottom: 3px;
+      font-size: 10px;
+      font-weight: 600;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 5px 7px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+    
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+    
+    /* Autocomplete */
+    .autocomplete-wrapper {
+      position: relative;
+    }
+    
+    .autocomplete-dropdown {
+      position: fixed;
+      background: white;
+      border: 1px solid #ddd;
+      border-top: none;
+      border-radius: 0 0 4px 4px;
+      max-height: 250px;
+      overflow-y: auto;
+      z-index: 10000;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      display: none;
+      min-width: 200px;
+    }
+    
+    .autocomplete-dropdown.active {
+      display: block;
+    }
+    
+    .autocomplete-item {
+      padding: 8px 10px;
+      cursor: pointer;
+      font-size: 11px;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .autocomplete-item:hover,
+    .autocomplete-item.selected {
+      background: #f8f9fa;
+    }
+    
+    .autocomplete-code {
+      font-weight: 600;
+      color: #667eea;
+    }
+    
+    .autocomplete-name {
+      font-size: 10px;
+      color: #666;
+    }
+    
+    /* Section Collapsible */
+    .section-collapse-icon {
+      transition: transform 0.3s;
+      font-size: 10px;
+    }
+    
+    .section-content {
+      overflow: hidden;
+      transition: max-height 0.3s ease;
+    }
+    
+    .section-content.collapsed {
+      display: none;
+    }
+    
+    /* Button Styles */
+    .btn {
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: all 0.2s;
+    }
+    
+    .btn-success {
+      background: #28a745;
+      color: white;
+    }
+    
+    .btn-success:hover {
+      background: #218838;
+    }
+    
+    .btn-secondary {
+      background: #6c757d;
+      color: white;
+    }
+    
+    .btn-secondary:hover {
+      background: #5a6268;
+    }
+    
+    .annotation-table-container {
+      overflow: auto;
+      background: #f8f9fa;
+      border: 1px solid #dee2e6;
+      border-radius: 4px;
+      max-height: 200px;
+      min-height: 100px;
+    }
+    
+    .annotation-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 11px;
+      background: white;
+    }
+    
+    .annotation-table thead {
+      position: sticky;
+      top: 0;
+      background: #667eea;
+      color: white;
+      z-index: 10;
+    }
+    
+    .annotation-table th {
+      padding: 6px 8px;
+      text-align: left;
+      font-weight: 600;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+      border-right: 1px solid rgba(255,255,255,0.2);
+    }
+    
+    .annotation-table td {
+      padding: 4px 8px;
+      border-bottom: 1px solid #dee2e6;
+      border-right: 1px solid #f0f0f0;
+      white-space: nowrap;
+    }
+    
+    .annotation-table tbody tr {
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    
+    .annotation-table tr:hover {
+      background: #e9ecef;
+    }
+    
+    .action-btn {
+      padding: 4px 8px;
+      font-size: 10px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-right: 4px;
+      font-weight: 500;
+      transition: opacity 0.2s;
+    }
+    
+    .action-btn-edit {
+      background: #667eea;
+      color: white;
+    }
+    
+    .action-btn-delete {
+      background: #dc3545;
+      color: white;
+    }
+    
+    /* Leaflet Control Positioning - Drawing tools on top-right */
+    .leaflet-top.leaflet-right {
+      top: 80px;
+    }
+    
+    .leaflet-top.leaflet-left {
+      top: 80px;
+    }
+    
+    /* Statistics Panel - Commented out for now */
+    .stats-panel {
+      position: absolute;
+      bottom: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 10px 15px;
+      border-radius: 6px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+      z-index: 1000;
+      font-size: 12px;
+      min-width: 180px;
+      display: none !important; /* Disabled for now */
+    }
+    
+    .stats-panel h4 {
+      margin: 0 0 8px 0;
+      font-size: 13px;
+      color: #333;
+    }
+    
+    .stat-row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 4px;
+    }
+    
+    .stat-label {
+      color: #666;
+    }
+    
+    .stat-value {
+      font-weight: bold;
+      color: #667eea;
+    }
+    
+    /* Status Messages */
+    .status {
+      padding: 8px;
+      border-radius: 4px;
+      margin: 10px 0;
+      font-size: 12px;
+      display: none;
+    }
+    
+    .status.success {
+      background: #d4edda;
+      color: #155724;
+      border: 1px solid #c3e6cb;
+    }
+    
+    .status.error {
+      background: #f8d7da;
+      color: #721c24;
+      border: 1px solid #f5c6cb;
+    }
+    
+    .status.info {
+      background: #d1ecf1;
+      color: #0c5460;
+      border: 1px solid #bee5eb;
+    }
+    
+    /* Timer Badge */
+    #annotationTimer, #totalTimeDisplay {
+      display: none;
+      padding: 4px 10px;
+      background: rgba(102, 126, 234, 0.1);
+      border-radius: 4px;
+      font-size: 12px;
+      color: #667eea;
+      font-weight: 600;
+    }
+    
+    /* Loading Overlay */
+    #loadingOverlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(10, 37, 64, 0.95);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 10000;
+      backdrop-filter: blur(4px);
+    }
+    
+    #loadingOverlay.active {
+      display: flex;
+    }
+    
+    .loading-content {
+      text-align: center;
+      color: white;
+      max-width: 500px;
+      padding: 40px;
+    }
+    
+    .loading-icon {
+      font-size: 48px;
+      margin-bottom: 20px;
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.7; transform: scale(1.1); }
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+    
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .loading-title {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 15px;
+    }
+    
+    .loading-message {
+      font-size: 16px;
+      opacity: 0.9;
+      line-height: 1.6;
+    }
+    
+    /* Edit Modal */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0,0,0,0.7);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 9999;
+    }
+    
+    .modal-overlay.active {
+      display: flex;
+    }
+    
+    .modal-content {
+      background: white;
+      border-radius: 8px;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+    }
+    
+    .modal-header {
+      padding: 15px 20px;
+      background: #667eea;
+      color: white;
+      border-radius: 8px 8px 0 0;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .modal-close {
+      background: none;
+      border: none;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      padding: 0;
+      line-height: 1;
+    }
+    
+    .modal-body {
+      padding: 20px;
+    }
+    
+    .modal-footer {
+      padding: 15px 20px;
+      border-top: 1px solid #dee2e6;
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    
+    /* Keyboard Shortcut Badge */
+    kbd {
+      background: white;
+      padding: 2px 6px;
+      border-radius: 3px;
+      border: 1px solid #ccc;
+      font-size: 10px;
+      font-family: monospace;
+    }
+    
+    /* Custom Scrollbar */
+    .panel::-webkit-scrollbar,
+    .annotation-table-container::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
+    
+    .panel::-webkit-scrollbar-track,
+    .annotation-table-container::-webkit-scrollbar-track {
+      background: #f1f1f1;
+      border-radius: 4px;
+    }
+    
+    .panel::-webkit-scrollbar-thumb,
+    .annotation-table-container::-webkit-scrollbar-thumb {
+      background: #888;
+      border-radius: 4px;
+    }
+    
+    .panel::-webkit-scrollbar-thumb:hover,
+    .annotation-table-container::-webkit-scrollbar-thumb:hover {
+      background: #555;
+    }
+  </style>
+</head>
+<body>
+  <!-- Navigation Bar -->
+  <nav class="navbar">
+    <h1>
+      <span>🪸</span>
+      <span>CAT - Coral Annotation Tool</span>
+      <span style="background: #ffc107; color: #000; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: bold; margin-left: 8px;">LITE VERSION</span>
+      <span style="font-size: 1px; margin: 0 6px;">|</span>
+      <a href="https://github.com/MichaelAkridge-NOAA/cat" target="_blank" style="font-size: 18px; font-weight: bold; color: #667eea; text-decoration: underline;" title="View full version on GitHub">
+        <span style="font-size: 16px;"></span> Install fully featured version here
+      </a>
+    </h1> 
+    <div class="nav-links">
+      <span id="totalTimeDisplay" title="Total session time">
+        ⏱️ <span id="totalTime">00:00</span>
+      </span>
+      <span id="annotationTimer" title="Current annotation time">
+        ⏲️ <span id="timerDisplay">00:00</span>
+      </span>
+      <input type="file" id="projectInput" accept=".json" style="display: none;">
+      <button class="btn btn-primary" onclick="document.getElementById('projectInput').click()">
+        📂 Load Project
+      </button>
+      <button class="btn btn-success" onclick="saveProject()">💾 Save Project</button>
+    
+      <button class="btn btn-secondary" onclick="toggleAnnotationLabels()" title="Toggle annotation labels">
+        🏷️ Labels
+      </button>
+    </div>
+  </nav>
+
+  <!-- Map Container -->
+  <div id="map"></div>
+
+  <!-- Splash Screen -->
+  <div id="splashScreen" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(10, 25, 47, 0.75); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); z-index: 10000; display: flex; align-items: center; justify-content: center; animation: fadeIn 0.5s ease-in; padding: 20px; overflow-y: auto;">
+    <div style="text-align: center; color: white; max-width: 800px; width: 100%; padding: 30px 20px;">
+      <img src="images/logo.png" alt="CAT Logo" style="width: min(180px, 40vw); height: auto; margin-bottom: 25px; animation: bounce 1s ease-in-out; filter: drop-shadow(0 4px 8px rgba(0,0,0,0.3));" />
+      <h1 style="font-size: clamp(32px, 6vw, 52px); margin: 0 0 10px 0; font-weight: bold; text-shadow: 2px 2px 8px rgba(0,0,0,0.7); letter-spacing: 2px;">CAT: Coral Annotation Tool</h1>
+      
+      <div style="background: linear-gradient(135deg, #ffc107 0%, #ff9800 100%); color: #000; padding: 10px 20px; border-radius: 12px; font-size: clamp(14px, 2.5vw, 18px); font-weight: bold; margin: 0 auto 35px auto; display: inline-block; box-shadow: 0 4px 15px rgba(255, 193, 7, 0.4); text-transform: uppercase; letter-spacing: 1px;">Lite Version</div>
+      
+      <div style="background: rgba(255, 255, 255, 0.15); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); border-radius: 16px; padding: clamp(20px, 4vw, 35px); margin-bottom: 30px; border: 1px solid rgba(255, 255, 255, 0.2); box-shadow: 0 8px 32px rgba(0,0,0,0.3);">
+        <p style="font-size: clamp(15px, 2.5vw, 19px); line-height: 1.7; margin: 0 0 25px 0; color: #fff; text-shadow: 1px 1px 3px rgba(0,0,0,0.5);">
+          🌐 Browser-based coral annotation for quick fieldwork Demo
+        </p>
+        <div style="background: rgba(102, 126, 234, 0.2); border-left: 4px solid #667eea; padding: 15px 20px; border-radius: 8px; margin-bottom: 25px; text-align: left;">
+          <p style="font-size: clamp(14px, 2.2vw, 17px); line-height: 1.6; margin: 0; color: #e3f2fd;">
+            <strong style="color: #82b1ff; font-size: clamp(15px, 2.4vw, 18px);">Want More Features?</strong><br>
+            The full desktop version includes:<br>
+            • Advanced annotation controls & batch processing<br>
+            • AI/ML-powered analysis tools<br>
+            • Enhanced export & import options & integrations<br>
+            • Offline capabilities & more!
+          </p>
+        </div>
+        <a href="https://github.com/MichaelAkridge-NOAA/cat" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: clamp(12px, 2vw, 16px) clamp(25px, 4vw, 35px); border-radius: 12px; text-decoration: none; font-size: clamp(15px, 2.5vw, 19px); font-weight: bold; transition: transform 0.3s, box-shadow 0.3s; box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4); margin-bottom: 10px;" onmouseover="this.style.transform='translateY(-3px) scale(1.02)'; this.style.boxShadow='0 8px 30px rgba(102, 126, 234, 0.6)';" onmouseout="this.style.transform='translateY(0) scale(1)'; this.style.boxShadow='0 6px 20px rgba(102, 126, 234, 0.4)';">
+          📦 Get Full Version on GitHub
+        </a>
+      </div>
+      
+      <button onclick="closeSplashScreen()" style="background: rgba(255, 255, 255, 0.25); color: white; border: 2px solid rgba(255, 255, 255, 0.5); padding: clamp(10px, 2vw, 14px) clamp(25px, 4vw, 35px); border-radius: 10px; font-size: clamp(14px, 2.3vw, 17px); font-weight: bold; cursor: pointer; transition: all 0.3s; box-shadow: 0 4px 15px rgba(0,0,0,0.2); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);" onmouseover="this.style.background='rgba(255, 255, 255, 0.35)'; this.style.transform='scale(1.05)'; this.style.borderColor='rgba(255, 255, 255, 0.8)';" onmouseout="this.style.background='rgba(255, 255, 255, 0.25)'; this.style.transform='scale(1)'; this.style.borderColor='rgba(255, 255, 255, 0.5)';">
+        Continue to Lite Version →
+      </button>
+      
+      <div style="margin-top: 25px; font-size: clamp(11px, 2vw, 13px); opacity: 0.9; text-shadow: 1px 1px 3px rgba(0,0,0,0.7);">
+        <label style="cursor: pointer; display: inline-flex; align-items: center; gap: 8px; padding: 8px 12px; background: rgba(255, 255, 255, 0.1); border-radius: 8px; transition: background 0.3s;" onmouseover="this.style.background='rgba(255, 255, 255, 0.15)'" onmouseout="this.style.background='rgba(255, 255, 255, 0.1)'">
+          <input type="checkbox" id="dontShowSplash" style="cursor: pointer; width: 16px; height: 16px;">
+          Don't show this again
+        </label>
+      </div>
+    </div>
+  </div>
+
+  <!-- Loading Overlay -->
+  <div id="loadingOverlay">
+    <div class="loading-content">
+      <div class="loading-icon">⏳</div>
+      <div class="loading-title">Loading Project</div>
+      <div class="loading-message">Initializing...</div>
+    </div>
+  </div>
+
+  <!-- Upload/Load Panel -->
+  <div class="panel" id="uploadPanel">
+    <div class="panel-header" onclick="togglePanel('uploadPanel')">
+      <span>📂 Project & COG Files</span>
+      <span class="collapse-icon">▼</span>
+    </div>
+    <div class="panel-content">
+      <p style="font-size: 13px; color: #666; margin-bottom: 15px;">
+        Load a project JSON or add COG files from GCS to start annotating.
+      </p>
+      
+      <!-- Project JSON Drop Zone -->
+      <div class="drop-zone" id="projectDropZone" style="margin-bottom: 15px;">
+        <div style="font-size: 36px; margin-bottom: 10px;">📄</div>
+        <div style="font-weight: 600; margin-bottom: 5px;">Drop Project JSON</div>
+        <div style="font-size: 12px; color: #666;">or click to browse</div>
+      </div>
+      
+      <!-- Manual COG Entry -->
+      <div style="margin-top: 20px;">
+        <label style="font-weight: 600; font-size: 13px; margin-bottom: 8px; display: block;">
+          Or add COG files manually:
+        </label>
+        <textarea 
+          id="cogPathsInput"
+          placeholder="gs://bucket/path/to/file.tif&#10;gs://bucket/path/to/another.tif"
+          style="width: 100%; min-height: 80px; padding: 10px; border: 1px solid #ddd; border-radius: 4px; font-family: monospace; font-size: 12px; margin-bottom: 10px;"></textarea>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-primary" onclick="addManualCogs()" style="flex: 1;">
+            ➕ Add COG Files
+          </button>
+          <button onclick="useDemoFile()" style="flex: 1; padding: 8px 16px; background: #ffc107; color: #000; border: none; border-radius: 6px; cursor: pointer; font-size: 12px; font-weight: 600; transition: all 0.3s;" onmouseover="this.style.background='#ffb300'" onmouseout="this.style.background='#ffc107'" title="Load example COG file">
+            🎬 Use Demo File
+          </button>
+        </div>
+      </div>
+      
+      <!-- Loaded COG Layers -->
+      <div id="cogLayersContainer" style="margin-top: 20px; display: none;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <label style="font-weight: 600; font-size: 13px;">Loaded COG Layers:</label>
+          <button class="btn btn-danger" onclick="clearAllCogs()" style="padding: 4px 10px; font-size: 11px;">
+            🗑️ Clear All
+          </button>
+        </div>
+        <div id="cogList"></div>
+      </div>
+      
+      <div id="uploadStatus" class="status"></div>
+    </div>
+  </div>
+
+  <!-- Annotation Form Panel -->
+  <!-- Combined Annotation Panel - Form + Table -->
+  <div class="panel" id="annotationPanel">
+    <!-- Form Section -->
+    <div style="margin-bottom: 2px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; padding: 6px 8px; background: #f8f9fa; border-radius: 4px; cursor: pointer;" onclick="toggleAnnotationSection('formSection')">
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <h3 style="margin: 0; font-size: 15px;">✏️ Annotation Form</h3>
+          <div style="font-size: 11px; color: #333; font-weight: bold;">Press <kbd style="background: white; padding: 2px 6px; border-radius: 3px; border: 1px solid #999; font-size: 10px; font-weight: bold;">Ctrl+S</kbd> to save</div>
+        </div>
+        <span class="section-collapse-icon" id="formSectionIcon">▼</span>
+      </div>
+      
+      <div id="formSectionContent" class="section-content">
+      <div class="form-container">
+        <!-- Core Fields -->
+        <div class="form-group">
+          <label>Analyst *</label>
+          <input type="text" id="analyst" placeholder="NAME" required maxlength="10" />
+        </div>
+        
+        <div class="form-group">
+          <label>Year *</label>
+          <input type="number" id="obs_year" placeholder="2026" required min="2000" max="2100" />
+        </div>
+        
+        <div class="form-group wide">
+          <label>Mission ID *</label>
+          <input type="text" id="mission_id" placeholder="CRUISEID" required />
+        </div>
+        
+        <div class="form-group wide">
+          <label>Site *</label>
+          <input type="text" id="site" placeholder="SITE" required />
+        </div>
+        
+        <div class="form-group">
+          <label>Transect</label>
+          <select id="transect">
+            <option value="">-</option>
+            <option value="A" selected>A</option>
+            <option value="B">B</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Segment</label>
+          <select id="segment">
+            <option value="">-</option>
+            <option value="0">0</option>
+            <option value="5">5</option>
+            <option value="10">10</option>
+            <option value="15">15</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Seg Length</label>
+          <input type="number" id="seglength" placeholder="" step="0.1" />
+        </div>
+        
+        <div class="form-group">
+          <label>Seg Width</label>
+          <input type="number" id="segwidth" placeholder="" step="0.1" />
+        </div>
+        
+        <!-- Species & Colony -->
+        <div class="form-group wide">
+          <label>Species <small style="color: #888;">(type to search)</small></label>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="spcode" placeholder="PLOB or Porites lobata" maxlength="50" autocomplete="off" />
+            <div id="species-autocomplete" class="autocomplete-dropdown"></div>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Morphology</label>
+          <input type="text" id="morph_code" placeholder="" maxlength="10" />
+        </div>
+        
+        <div class="form-group">
+          <label>No Colony</label>
+          <select id="no_colony">
+            <option value="0">No</option>
+            <option value="-1">Yes</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Juvenile</label>
+          <select id="juvenile">
+            <option value="0">No</option>
+            <option value="-1">Yes</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>JUV_SUBSTRATE</label>
+          <div class="autocomplete-wrapper">
+            <input type="text" id="juv_substrate" placeholder="" maxlength="50" autocomplete="off" />
+            <div id="juv-substrate-autocomplete" class="autocomplete-dropdown"></div>
+          </div>
+        </div>
+        
+        <div class="form-group">
+          <label>Remnant</label>
+          <select id="remnant">
+            <option value="0">No</option>
+            <option value="-1">Yes</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Ex. Bound</label>
+          <select id="ex_bound">
+            <option value="0">No</option>
+            <option value="-1">Yes</option>
+          </select>
+        </div>
+        
+        <div class="form-group">
+          <label>Old Dead %</label>
+          <input type="number" id="olddead" placeholder="" min="0" max="100" />
+        </div>
+        
+        <!-- Recent Dead -->
+        <div class="form-group">
+          <label>RD Cause 1</label>
+          <input type="text" id="rdcause1" placeholder="" maxlength="10" />
+        </div>
+        
+        <div class="form-group">
+          <label>RD 1 %</label>
+          <input type="number" id="rd_1" placeholder="" min="0" max="100" />
+        </div>
+        
+        <div class="form-group">
+          <label>RD Cause 2</label>
+          <input type="text" id="rdcause2" maxlength="10" />
+        </div>
+        
+        <div class="form-group">
+          <label>RD 2 %</label>
+          <input type="number" id="rd_2" min="0" max="100" />
+        </div>
+        
+        <div class="form-group">
+          <label>RD Cause 3</label>
+          <input type="text" id="rdcause3" maxlength="10" />
+        </div>
+        
+        <div class="form-group">
+          <label>RD 3 %</label>
+          <input type="number" id="rd_3" min="0" max="100" />
+        </div>
+        
+        <!-- Health Conditions -->
+        <div class="form-group">
+          <label>Condition 1</label>
+          <input type="text" id="con_1" placeholder="" maxlength="10" />
+        </div>
+        
+        <div class="form-group">
+          <label>Extent 1 %</label>
+          <input type="number" id="extent_1" placeholder="" min="0" max="100" />
+        </div>
+        
+        <div class="form-group">
+          <label>Severity 1</label>
+          <input type="number" id="sev_1" placeholder="" min="1" max="5" />
+        </div>
+        
+        <div class="form-group">
+          <label>Condition 2</label>
+          <input type="text" id="con_2" maxlength="10" />
+        </div>
+        
+        <div class="form-group">
+          <label>Extent 2 %</label>
+          <input type="number" id="extent_2" min="0" max="100" />
+        </div>
+        
+        <div class="form-group">
+          <label>Severity 2</label>
+          <input type="number" id="sev_2" min="1" max="5" />
+        </div>
+        
+        <div class="form-group">
+          <label>Condition 3</label>
+          <input type="text" id="con_3" maxlength="10" />
+        </div>
+        
+        <div class="form-group">
+          <label>Extent 3 %</label>
+          <input type="number" id="extent_3" min="0" max="100" />
+        </div>
+        
+        <div class="form-group">
+          <label>Severity 3</label>
+          <input type="number" id="sev_3" min="1" max="5" />
+        </div>
+      </div>
+      
+      <button class="btn btn-success" onclick="saveCurrentAnnotation()" style="padding: 6px 15px; font-size: 12px; margin-right: 5px; margin-top: 10px;">
+        💾 Save
+      </button>
+      <button class="btn btn-secondary" onclick="clearForm()" style="padding: 6px 15px; font-size: 12px; margin-top: 10px;">
+        🔄 Clear Form
+      </button>
+      
+      <div id="formStatus" class="status"></div>
+    </div>
+    </div>
+    
+    <!-- Annotations List Section -->
+    <div style="margin-bottom: 2px;">
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; padding: 8px; background: #f8f9fa; border-radius: 4px; cursor: pointer;" onclick="toggleAnnotationSection('annotationsListSection')">
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <h3 style="margin: 0; font-size: 15px;">📋 Annotations (<span id="annotationCount">0</span>)</h3>
+        </div>
+        <span class="section-collapse-icon" id="annotationsListSectionIcon">▼</span>
+      </div>
+      
+      <div id="annotationsListSectionContent" class="section-content">
+        <div class="annotation-table-container">
+        <table class="annotation-table" id="annotationTable">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Type</th>
+              <th>Site</th>
+              <th>Species</th>
+              <th>Juvenile</th>
+              <th>JUV_SUB</th>
+              <th>Transect</th>
+              <th>Segment</th>
+              <th>Morph</th>
+              <th>Old Dead %</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="annotationTableBody">
+            <tr>
+              <td colspan="11" style="text-align: center; padding: 20px; color: #6c757d;">
+                No annotations yet - draw on the map to create one
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Statistics Panel - Commented out for now
+  <div class="stats-panel" id="statsPanel">
+    <h4>📊 Statistics</h4>
+    <div class="stat-row">
+      <span class="stat-label">Total:</span>
+      <span class="stat-value" id="statTotal">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Lines:</span>
+      <span class="stat-value" id="statLines">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Boxes:</span>
+      <span class="stat-value" id="statBoxes">0</span>
+    </div>
+    <div class="stat-row">
+      <span class="stat-label">Polygons:</span>
+      <span class="stat-value" id="statPolygons">0</span>
+    </div>
+  </div>
+  -->
+
+  <!-- Edit Modal -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>✏️ Edit Annotation #<span id="editModalId"></span></h3>
+        <button class="modal-close" onclick="closeEditModal()">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="editFormContainer"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-primary" onclick="saveEditedAnnotation()">💾 Save Changes</button>
+        <button class="btn btn-secondary" onclick="closeEditModal()">Cancel</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- External JavaScript Libraries -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet-draw@1.0.4/dist/leaflet.draw.js"></script>
+  
+  <script>
+    // =================================================================
+    // CONFIGURATION
+    // =================================================================
+    const TILE_SERVER_URL = 'https://connect.fisheries.noaa.gov/cat-tiles';
+    
+    // Coral Species Data - loaded from coral_species.json
+    let CORAL_SPECIES = [];
+    
+    // Juvenile substrate options
+    const JUV_SUBSTRATE_OPTIONS = [
+      "CCA", "Turf", "Macroalgae", "Dead Coral", "Sand", "Rock", "Other Coral"
+    ];
+    
+    // =================================================================
+    // STATE
+    // =================================================================
+    let map = null;
+    let drawnItems = null;
+    let drawControl = null;
+    let cogLayers = [];
+    let annotations = [];
+    let currentAnnotationId = null;
+    let projectData = null;
+    let annotationCounter = 1;
+    let autocompleteResults = [];
+    let autocompleteSelectedIndex = -1;
+    let juvSubstrateResults = [];
+    let juvSubstrateSelectedIndex = -1;
+    
+    // Timer state
+    const timerState = {
+      sessionStartTime: null,
+      totalSessionSeconds: 0,
+      annotationStartTime: null,
+      isRunning: false,
+      displayInterval: null
+    };
+    
+    // =================================================================
+    // SPLASH SCREEN
+    // =================================================================
+    function closeSplashScreen() {
+      const splashScreen = document.getElementById('splashScreen');
+      const dontShowCheckbox = document.getElementById('dontShowSplash');
+      
+      if (dontShowCheckbox && dontShowCheckbox.checked) {
+        localStorage.setItem('splashScreenDismissed', 'true');
+      }
+      
+      if (splashScreen) {
+        splashScreen.style.animation = 'fadeOut 0.5s ease-out';
+        setTimeout(() => {
+          splashScreen.style.display = 'none';
+        }, 500);
+      }
+    }
+    
+    function checkSplashScreen() {
+      const dismissed = localStorage.getItem('splashScreenDismissed');
+      if (dismissed === 'true') {
+        const splashScreen = document.getElementById('splashScreen');
+        if (splashScreen) {
+          splashScreen.style.display = 'none';
+        }
+      }
+    }
+    
+    // =================================================================
+    // INITIALIZATION
+    // =================================================================
+    async function init() {
+      // Check splash screen preference
+      checkSplashScreen();
+      
+      // Load coral species first
+      await loadCoralSpecies();
+      
+      initMap();
+      initDrawing();
+      setupDropZones();
+      setupProjectInput();
+      setupAutocomplete();
+      setupKeyboardShortcuts();
+      startSessionTimer();
+      
+      // Try to load from localStorage
+      loadFromLocalStorage();
+    }
+    
+    /**
+     * Load coral species from JSON file
+     */
+    async function loadCoralSpecies() {
+      try {
+        // Check if we're running locally (file:// protocol)
+        const isLocal = window.location.protocol === 'file:';
+        
+        if (isLocal) {
+          console.warn('⚠️ Running locally - using embedded species list (CORS restriction)');
+          throw new Error('Local file access blocked by CORS');
+        }
+        
+        const response = await fetch('coral_species.json');
+        if (!response.ok) {
+          throw new Error('Failed to load coral species');
+        }
+        
+        const speciesArray = await response.json();
+        
+        // Parse the format "CODE - Name" into structured objects
+        CORAL_SPECIES = speciesArray.map(item => {
+          const parts = item.split(' - ');
+          const code = parts[0].trim();
+          const name = parts[1] ? parts[1].trim() : '';
+          
+          return {
+            code: code,
+            name: name,
+            scientific: name // Using name as scientific name for simplicity
+          };
+        });
+        
+        console.log(`✅ Loaded ${CORAL_SPECIES.length} coral species from file`);
+      } catch (error) {
+        console.log('📋 Loading embedded coral species list');
+        // Full embedded species list as fallback
+        CORAL_SPECIES = [
+          { code: "PLOB", name: "Porites lobata", scientific: "Porites lobata" },
+          { code: "PCOM", name: "Porites compressa", scientific: "Porites compressa" },
+          { code: "Prus", name: "Porites rus", scientific: "Porites rus" },
+          { code: "PEVR", name: "Porites evermanni", scientific: "Porites evermanni" },
+          { code: "POCA", name: "Pocillopora meandrina", scientific: "Pocillopora meandrina" },
+          { code: "POCT", name: "Pocillopora eydouxi", scientific: "Pocillopora eydouxi" },
+          { code: "POCL", name: "Pocillopora ligulata", scientific: "Pocillopora ligulata" },
+          { code: "POCD", name: "Pocillopora damicornis", scientific: "Pocillopora damicornis" },
+          { code: "POCG", name: "Pocillopora grandis", scientific: "Pocillopora grandis" },
+          { code: "MONT", name: "Montipora capitata", scientific: "Montipora capitata" },
+          { code: "MSTU", name: "Montipora patula", scientific: "Montipora patula" },
+          { code: "MFLA", name: "Montipora flabellata", scientific: "Montipora flabellata" },
+          { code: "MPAT", name: "Montipora patula", scientific: "Montipora patula" },
+          { code: "LPUR", name: "Leptastrea purpurea", scientific: "Leptastrea purpurea" },
+          { code: "PSTE", name: "Porites lichen", scientific: "Porites lichen" },
+          { code: "FUNG", name: "Fungia scutaria", scientific: "Fungia scutaria" },
+          { code: "PDAM", name: "Pavona duerdeni", scientific: "Pavona duerdeni" },
+          { code: "PVAR", name: "Pavona varians", scientific: "Pavona varians" },
+          { code: "COCH", name: "Cyphastrea ocellina", scientific: "Cyphastrea ocellina" },
+          { code: "PLIG", name: "Porites lichen", scientific: "Porites lichen" },
+          { code: "PMEA", name: "Pocillopora meandrina", scientific: "Pocillopora meandrina" },
+          { code: "MCAP", name: "Montipora capitata", scientific: "Montipora capitata" },
+          { code: "MOTU", name: "Montipora turgescens", scientific: "Montipora turgescens" },
+          { code: "POCH", name: "Pocillopora sp", scientific: "Pocillopora sp" },
+          { code: "MONS", name: "Montipora sp", scientific: "Montipora sp" },
+          { code: "PORI", name: "Porites sp", scientific: "Porites sp" }
+        ];
+        console.log(`✅ Loaded ${CORAL_SPECIES.length} embedded coral species`);
+      }
+    }
+    
+    function initMap() {
+      map = L.map('map', {
+        center: [21.5, -158.0],
+        zoom: 8,
+        maxZoom: 2000,
+        zoomControl: false
+      });
+      
+      // Add zoom control to top-right
+      L.control.zoom({
+        position: 'topright'
+      }).addTo(map);
+      
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+      
+      console.log('✅ Map initialized');
+    }
+    
+    function initDrawing() {
+      drawnItems = new L.FeatureGroup();
+      map.addLayer(drawnItems);
+      
+      // Add instruction box above drawing tools (if not dismissed)
+      const DrawingInstructions = L.Control.extend({
+        options: {
+          position: 'topright'
+        },
+        onAdd: function(map) {
+          const container = L.DomUtil.create('div', 'drawing-instructions');
+          
+          // Check if user has dismissed this before
+          const isDismissed = localStorage.getItem('drawingInstructionsDismissed') === 'true';
+          
+          if (isDismissed) {
+            container.style.display = 'none';
+          }
+          
+          container.innerHTML = `
+            <div style="background: white; padding: 10px 12px; border-radius: 4px; box-shadow: 0 1px 5px rgba(0,0,0,0.4); margin-bottom: 10px; font-size: 13px; max-width: 200px; position: relative;">
+              <button onclick="dismissDrawingInstructions()" style="position: absolute; top: 6px; right: 6px; background: none; border: none; cursor: pointer; font-size: 16px; line-height: 1; padding: 2px 4px; color: #999; font-weight: bold;" title="Dismiss (won't show again)">×</button>
+              <div style="font-weight: bold; margin-bottom: 6px; color: #667eea; display: flex; align-items: center; gap: 5px; padding-right: 20px;">
+                <span style="font-size: 16px;">✏️</span> Drawing Tools
+              </div>
+              <div style="font-size: 11px; line-height: 1.4; color: #555;">
+                1. Click a tool below to start<br>
+                2. Draw on the map<br>
+                3. Fill the form and save
+              </div>
+            </div>
+          `;
+          
+          // Prevent map interactions on the control
+          L.DomEvent.disableClickPropagation(container);
+          L.DomEvent.disableScrollPropagation(container);
+          
+          return container;
+        }
+      });
+      
+      map.addControl(new DrawingInstructions());
+      
+      drawControl = new L.Control.Draw({
+        position: 'topright',
+        edit: {
+          featureGroup: drawnItems,
+          edit: true,
+          remove: true
+        },
+        draw: {
+          polygon: true,
+          polyline: true,
+          rectangle: true,
+          circle: false,
+          marker: false,
+          circlemarker: false
+        }
+      });
+      
+      map.addControl(drawControl);
+      
+      // Handle drawing events
+      map.on(L.Draw.Event.CREATED, onDrawCreated);
+      map.on(L.Draw.Event.EDITED, onDrawEdited);
+      map.on(L.Draw.Event.DELETED, onDrawDeleted);
+      
+      console.log('✅ Drawing tools initialized');
+    }
+    
+    function dismissDrawingInstructions() {
+      const container = document.querySelector('.drawing-instructions');
+      if (container) {
+        container.style.display = 'none';
+        localStorage.setItem('drawingInstructionsDismissed', 'true');
+        console.log('✅ Drawing instructions dismissed');
+      }
+    }
+    
+    // =================================================================
+    // TIMER FUNCTIONS
+    // =================================================================
+    function startSessionTimer() {
+      if (!timerState.sessionStartTime) {
+        timerState.sessionStartTime = Date.now();
+        console.log('⏱️ Session timer started');
+        
+        const totalBadge = document.getElementById('totalTimeDisplay');
+        if (totalBadge) {
+          totalBadge.style.display = 'inline-block';
+        }
+        
+        // Update timer display every second
+        timerState.displayInterval = setInterval(updateTimerDisplay, 1000);
+      }
+    }
+    
+    function updateTimerDisplay() {
+      const totalDisplay = document.getElementById('totalTime');
+      const timerDisplay = document.getElementById('timerDisplay');
+      
+      if (totalDisplay && timerState.sessionStartTime) {
+        const now = Date.now();
+        const sessionElapsed = Math.floor((now - timerState.sessionStartTime) / 1000);
+        timerState.totalSessionSeconds = sessionElapsed;
+        totalDisplay.textContent = formatTime(sessionElapsed);
+      }
+      
+      if (timerDisplay && timerState.annotationStartTime) {
+        const now = Date.now();
+        const elapsed = Math.floor((now - timerState.annotationStartTime) / 1000);
+        timerDisplay.textContent = formatTime(elapsed);
+      }
+    }
+    
+    function startAnnotationTimer() {
+      if (!timerState.annotationStartTime) {
+        timerState.annotationStartTime = Date.now();
+        timerState.isRunning = true;
+        
+        const timerBadge = document.getElementById('annotationTimer');
+        if (timerBadge) {
+          timerBadge.style.display = 'inline-block';
+        }
+        
+        console.log('⏲️ Annotation timer started');
+      }
+    }
+    
+    function stopAnnotationTimer() {
+      timerState.annotationStartTime = null;
+      timerState.isRunning = false;
+      
+      const timerBadge = document.getElementById('annotationTimer');
+      if (timerBadge) {
+        timerBadge.style.display = 'none';
+      }
+      
+      const timerDisplay = document.getElementById('timerDisplay');
+      if (timerDisplay) {
+        timerDisplay.textContent = '00:00';
+      }
+    }
+    
+    function formatTime(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      
+      if (h > 0) {
+        return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      }
+      return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+    }
+    
+    // =================================================================
+    // AUTOCOMPLETE FUNCTIONS
+    // =================================================================
+    function setupAutocomplete() {
+      // Species autocomplete
+      const speciesInput = document.getElementById('spcode');
+      const speciesDropdown = document.getElementById('species-autocomplete');
+      
+      if (speciesInput && speciesDropdown) {
+        let debounceTimer;
+        
+        speciesInput.addEventListener('input', function(e) {
+          const query = e.target.value.trim();
+          clearTimeout(debounceTimer);
+          
+          if (query.length < 2) {
+            speciesDropdown.classList.remove('active');
+            return;
+          }
+          
+          debounceTimer = setTimeout(() => {
+            searchSpecies(query);
+          }, 300);
+        });
+        
+        speciesInput.addEventListener('keydown', function(e) {
+          handleAutocompleteKeyboard(e, speciesDropdown, autocompleteResults, 'species');
+        });
+        
+        // Close on outside click
+        document.addEventListener('click', function(e) {
+          if (!speciesInput.contains(e.target) && !speciesDropdown.contains(e.target)) {
+            speciesDropdown.classList.remove('active');
+          }
+        });
+      }
+      
+      // JUV_SUBSTRATE autocomplete
+      const juvInput = document.getElementById('juv_substrate');
+      const juvDropdown = document.getElementById('juv-substrate-autocomplete');
+      
+      if (juvInput && juvDropdown) {
+        let debounceTimer;
+        
+        juvInput.addEventListener('input', function(e) {
+          const query = e.target.value.trim();
+          clearTimeout(debounceTimer);
+          
+          if (query.length < 1) {
+            juvDropdown.classList.remove('active');
+            return;
+          }
+          
+          debounceTimer = setTimeout(() => {
+            searchJuvSubstrate(query);
+          }, 200);
+        });
+        
+        juvInput.addEventListener('keydown', function(e) {
+          handleAutocompleteKeyboard(e, juvDropdown, juvSubstrateResults, 'juv');
+        });
+        
+        document.addEventListener('click', function(e) {
+          if (!juvInput.contains(e.target) && !juvDropdown.contains(e.target)) {
+            juvDropdown.classList.remove('active');
+          }
+        });
+      }
+    }
+    
+    function searchSpecies(query) {
+      const dropdown = document.getElementById('species-autocomplete');
+      const q = query.toLowerCase();
+      
+      // Check if species are loaded
+      if (CORAL_SPECIES.length === 0) {
+        dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999;">Loading species...</div>';
+        dropdown.classList.add('active');
+        return;
+      }
+      
+      autocompleteResults = CORAL_SPECIES.filter(species => 
+        species.code.toLowerCase().includes(q) ||
+        species.name.toLowerCase().includes(q) ||
+        species.scientific.toLowerCase().includes(q)
+      ).slice(0, 10);
+      
+      if (autocompleteResults.length === 0) {
+        dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999;">No species found</div>';
+      } else {
+        dropdown.innerHTML = autocompleteResults.map((species, index) => `
+          <div class="autocomplete-item ${index === 0 ? 'selected' : ''}" 
+               data-index="${index}" 
+               onclick="selectSpecies('${species.code}', '${species.name}')">
+            <div class="autocomplete-code">${species.code}</div>
+            <div class="autocomplete-name">${species.name}</div>
+          </div>
+        `).join('');
+        autocompleteSelectedIndex = 0;
+      }
+      
+      dropdown.classList.add('active');
+    }
+    
+    function selectSpecies(code, name) {
+      const input = document.getElementById('spcode');
+      if (input) {
+        input.value = code;
+      }
+      
+      const dropdown = document.getElementById('species-autocomplete');
+      if (dropdown) {
+        dropdown.classList.remove('active');
+      }
+      
+      autocompleteSelectedIndex = -1;
+    }
+    
+    function searchJuvSubstrate(query) {
+      const dropdown = document.getElementById('juv-substrate-autocomplete');
+      const q = query.toLowerCase();
+      
+      juvSubstrateResults = JUV_SUBSTRATE_OPTIONS.filter(option => 
+        option.toLowerCase().includes(q)
+      );
+      
+      if (juvSubstrateResults.length === 0) {
+        dropdown.innerHTML = '<div class="autocomplete-item" style="color: #999;">No matches</div>';
+      } else {
+        dropdown.innerHTML = juvSubstrateResults.map((option, index) => `
+          <div class="autocomplete-item ${index === 0 ? 'selected' : ''}" 
+               data-index="${index}" 
+               onclick="selectJuvSubstrate('${option}')">
+            ${option}
+          </div>
+        `).join('');
+        juvSubstrateSelectedIndex = 0;
+      }
+      
+      dropdown.classList.add('active');
+    }
+    
+    function selectJuvSubstrate(value) {
+      const input = document.getElementById('juv_substrate');
+      if (input) {
+        input.value = value;
+      }
+      
+      const dropdown = document.getElementById('juv-substrate-autocomplete');
+      if (dropdown) {
+        dropdown.classList.remove('active');
+      }
+      
+      juvSubstrateSelectedIndex = -1;
+    }
+    
+    function handleAutocompleteKeyboard(e, dropdown, results, type) {
+      if (!dropdown.classList.contains('active')) return;
+      
+      const items = dropdown.querySelectorAll('.autocomplete-item');
+      const selectedIndexRef = type === 'species' ? 'autocompleteSelectedIndex' : 'juvSubstrateSelectedIndex';
+      let selectedIndex = type === 'species' ? autocompleteSelectedIndex : juvSubstrateSelectedIndex;
+      
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        selectedIndex = Math.min(selectedIndex + 1, items.length - 1);
+        updateAutocompleteSelection(items, selectedIndex);
+        if (type === 'species') autocompleteSelectedIndex = selectedIndex;
+        else juvSubstrateSelectedIndex = selectedIndex;
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        selectedIndex = Math.max(selectedIndex - 1, 0);
+        updateAutocompleteSelection(items, selectedIndex);
+        if (type === 'species') autocompleteSelectedIndex = selectedIndex;
+        else juvSubstrateSelectedIndex = selectedIndex;
+      } else if (e.key === 'Enter' || e.key === 'Tab') {
+        if (selectedIndex >= 0 && selectedIndex < results.length) {
+          e.preventDefault();
+          if (type === 'species') {
+            selectSpecies(results[selectedIndex].code, results[selectedIndex].name);
+          } else {
+            selectJuvSubstrate(results[selectedIndex]);
+          }
+        }
+      } else if (e.key === 'Escape') {
+        dropdown.classList.remove('active');
+        if (type === 'species') autocompleteSelectedIndex = -1;
+        else juvSubstrateSelectedIndex = -1;
+      }
+    }
+    
+    function updateAutocompleteSelection(items, selectedIndex) {
+      items.forEach((item, index) => {
+        if (index === selectedIndex) {
+          item.classList.add('selected');
+          item.scrollIntoView({ block: 'nearest' });
+        } else {
+          item.classList.remove('selected');
+        }
+      });
+    }
+    
+    // =================================================================
+    // GEOMETRY UTILITIES
+    // =================================================================
+    
+    /**
+     * Extract full-precision geometry from Leaflet layer
+     * IMPORTANT: Leaflet's toGeoJSON() truncates coordinates to 6 decimal places by default,
+     * which causes ~1 meter precision loss. This function extracts coordinates directly
+     * from the layer's internal LatLng objects to preserve full floating-point precision.
+     * 
+     * @param {L.Layer} layer - Leaflet layer object
+     * @returns {Object} GeoJSON geometry object with full precision coordinates
+     */
+    function getFullPrecisionGeometry(layer) {
+      let coordinates;
+      const geoJson = layer.toGeoJSON();
+      const geometryType = geoJson.geometry.type;
+      
+      // Extract coordinates directly from Leaflet (bypasses toGeoJSON precision loss)
+      if (geometryType === 'LineString') {
+        coordinates = layer.getLatLngs().map(latlng => [latlng.lng, latlng.lat]);
+      } else if (geometryType === 'Polygon') {
+        coordinates = [layer.getLatLngs()[0].map(latlng => [latlng.lng, latlng.lat])];
+      } else if (geometryType === 'Point') {
+        const latlng = layer.getLatLng();
+        coordinates = [latlng.lng, latlng.lat];
+      } else {
+        // Fallback to toGeoJSON for unknown types
+        console.warn('Unknown geometry type:', geometryType);
+        coordinates = geoJson.geometry.coordinates;
+      }
+      
+      return {
+        type: geometryType,
+        coordinates: coordinates
+      };
+    }
+    
+    // =================================================================
+    // POPUP AND LABEL UTILITIES
+    // =================================================================
+    
+    let annotationLabels = new Map();
+    let labelsVisible = true;
+    
+    /**
+     * Show annotation popup on layer click
+     */
+    function showAnnotationPopup(layer, latlng, annotationIndex) {
+      if (!layer || annotationIndex === undefined) return;
+      
+      const ann = annotations[annotationIndex];
+      if (!ann) return;
+      
+      const props = ann.properties || {};
+      
+      // Build popup content
+      let popupContent = '<div style="min-width: 250px; max-width: 350px;">';
+      popupContent += '<h4 style="margin: 0 0 8px 0; padding-bottom: 5px; border-bottom: 2px solid #667eea;">Annotation Details</h4>';
+      
+      // Key fields
+      if (props.spcode) {
+        popupContent += `<div style="margin: 4px 0;"><strong>Species:</strong> ${props.spcode}</div>`;
+      }
+      popupContent += `<div style="margin: 4px 0;"><strong>ID:</strong> ${ann.annotation_id}</div>`;
+      popupContent += `<div style="margin: 4px 0;"><strong>Type:</strong> ${ann.type}</div>`;
+      
+      if (props.site) {
+        popupContent += `<div style="margin: 4px 0;"><strong>Site:</strong> ${props.site}</div>`;
+      }
+      if (props.transect) {
+        popupContent += `<div style="margin: 4px 0;"><strong>Transect:</strong> ${props.transect}</div>`;
+      }
+      if (props.segment) {
+        popupContent += `<div style="margin: 4px 0;"><strong>Segment:</strong> ${props.segment}</div>`;
+      }
+      if (props.morph_code) {
+        popupContent += `<div style="margin: 4px 0;"><strong>Morphology:</strong> ${props.morph_code}</div>`;
+      }
+      if (props.juvenile === -1) {
+        popupContent += `<div style="margin: 4px 0;"><strong>Juvenile:</strong> Yes</div>`;
+      }
+      if (props.olddead) {
+        popupContent += `<div style="margin: 4px 0;"><strong>Old Dead:</strong> ${props.olddead}%</div>`;
+      }
+      
+      // Action buttons
+      popupContent += `
+        <div style="margin-top: 12px; padding-top: 8px; border-top: 2px solid #ddd; display: flex; gap: 6px; flex-wrap: wrap; justify-content: center;">
+          <button onclick="map.closePopup(); enableGeometryEdit(${annotationIndex})" 
+                  style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                  onmouseover="this.style.background='#218838'" 
+                  onmouseout="this.style.background='#28a745'"
+                  title="Edit Shape">
+            📐 Shape
+          </button>
+          <button onclick="if(confirm('Delete this annotation?')) { map.closePopup(); deleteAnnotation('${ann.id}'); }" 
+                  style="padding: 6px 12px; background: #dc3545; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;"
+                  onmouseover="this.style.background='#c82333'" 
+                  onmouseout="this.style.background='#dc3545'"
+                  title="Delete">
+            🗑️ Delete
+          </button>
+        </div>
+      `;
+      
+      popupContent += '</div>';
+      
+      // Create and show popup
+      L.popup({
+        maxWidth: 350,
+        closeButton: true
+      })
+        .setLatLng(latlng)
+        .setContent(popupContent)
+        .openOn(map);
+    }
+    
+    /**
+     * Enable geometry editing for an annotation
+     */
+    function enableGeometryEdit(annotationIndex) {
+      const ann = annotations[annotationIndex];
+      if (!ann) return;
+      
+      // Find the layer
+      let targetLayer = null;
+      drawnItems.eachLayer((layer) => {
+        if (layer.annotationId === ann.id) {
+          targetLayer = layer;
+        }
+      });
+      
+      if (!targetLayer) {
+        showStatus('formStatus', 'error', '❌ Could not find annotation to edit');
+        return;
+      }
+      
+      // Enable edit mode for this specific layer
+      targetLayer.editing.enable();
+      
+      // Store reference to the layer being edited
+      window.editingLayer = targetLayer;
+      window.editingAnnotationIndex = annotationIndex;
+      
+      // Listen for when editing is complete (user clicks outside or presses escape)
+      const saveGeometryEdit = () => {
+        if (window.editingLayer && window.editingLayer.editing.enabled()) {
+          // Disable editing
+          window.editingLayer.editing.disable();
+          
+          // Update the geometry with full precision
+          const ann = annotations[window.editingAnnotationIndex];
+          if (ann) {
+            ann.geometry = getFullPrecisionGeometry(window.editingLayer);
+            
+            // Update label position if labels are visible
+            if (labelsVisible) {
+              addLabelToAnnotation(window.editingLayer, window.editingAnnotationIndex);
+            }
+            
+            saveToLocalStorage();
+            showStatus('formStatus', 'success', '✅ Shape updated - changes saved');
+            console.log('✏️ Updated geometry for annotation', ann.annotation_id);
+          }
+          
+          // Clean up
+          window.editingLayer = null;
+          window.editingAnnotationIndex = null;
+          map.off('click', saveGeometryEdit);
+        }
+      };
+      
+      // Save when user clicks elsewhere on the map
+      map.once('click', saveGeometryEdit);
+      
+      showStatus('formStatus', 'info', '📐 Drag points to edit shape - click map when done');
+      console.log('📐 Enabled geometry editing for annotation', ann.annotation_id);
+    }
+    
+    /**
+     * Add label to annotation layer
+     */
+    function addLabelToAnnotation(layer, annotationIndex) {
+      const ann = annotations[annotationIndex];
+      if (!ann) return;
+      
+      const props = ann.properties || {};
+      const spcode = props.spcode || 'Unknown';
+      const annotationId = ann.annotation_id || annotationIndex + 1;
+      
+      // Calculate center point
+      let center;
+      if (layer.getLatLngs) {
+        // For lines and polygons, get the center
+        const latlngs = layer.getLatLngs();
+        if (Array.isArray(latlngs) && latlngs.length > 0) {
+          // For polygons, latlngs is nested array
+          const points = Array.isArray(latlngs[0]) ? latlngs[0] : latlngs;
+          
+          // For lines, use midpoint; for polygons, use geometric center
+          if (points.length === 2) {
+            // Line - use midpoint
+            center = L.latLng(
+              (points[0].lat + points[1].lat) / 2,
+              (points[0].lng + points[1].lng) / 2
+            );
+          } else {
+            // Polygon or multi-point line - calculate centroid
+            let latSum = 0, lngSum = 0;
+            points.forEach(p => {
+              latSum += p.lat;
+              lngSum += p.lng;
+            });
+            center = L.latLng(latSum / points.length, lngSum / points.length);
+          }
+        } else {
+          center = layer.getBounds().getCenter();
+        }
+      } else if (layer.getBounds) {
+        center = layer.getBounds().getCenter();
+      } else if (layer.getLatLng) {
+        center = layer.getLatLng();
+      } else {
+        return;
+      }
+      
+      const labelText = `${spcode} #${annotationId}`;
+      
+      // Remove existing label if present
+      const layerId = layer._leaflet_id;
+      if (annotationLabels.has(layerId)) {
+        const oldLabel = annotationLabels.get(layerId);
+        if (map.hasLayer(oldLabel)) {
+          map.removeLayer(oldLabel);
+        }
+      }
+      
+      // Create new label marker
+      const labelMarker = L.marker(center, {
+        icon: L.divIcon({
+          className: 'annotation-label',
+          html: `<div style="
+            background: rgba(255, 255, 255, 0.95);
+            color: #000;
+            padding: 3px 8px;
+            border-radius: 4px;
+            border: 2px solid #667eea;
+            font-size: 11px;
+            font-weight: bold;
+            white-space: nowrap;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            pointer-events: none;
+          ">${labelText}</div>`,
+          iconSize: null,
+          iconAnchor: [0, 0]
+        }),
+        interactive: false
+      });
+      
+      labelMarker.addTo(map);
+      annotationLabels.set(layerId, labelMarker);
+    }
+    
+    /**
+     * Show all annotation labels
+     */
+    function showAllAnnotationLabels() {
+      drawnItems.eachLayer((layer, idx) => {
+        if (layer.annotationId) {
+          const annIndex = annotations.findIndex(a => a.id === layer.annotationId);
+          if (annIndex >= 0) {
+            addLabelToAnnotation(layer, annIndex);
+          }
+        }
+      });
+      labelsVisible = true;
+    }
+    
+    /**
+     * Hide all annotation labels
+     */
+    function hideAllAnnotationLabels() {
+      annotationLabels.forEach((labelMarker) => {
+        if (map.hasLayer(labelMarker)) {
+          map.removeLayer(labelMarker);
+        }
+      });
+      annotationLabels.clear();
+      labelsVisible = false;
+    }
+    
+    /**
+     * Toggle annotation labels
+     */
+    function toggleAnnotationLabels() {
+      if (labelsVisible) {
+        hideAllAnnotationLabels();
+        showStatus('formStatus', 'info', '🏷️ Labels hidden');
+      } else {
+        showAllAnnotationLabels();
+        showStatus('formStatus', 'success', '🏷️ Labels shown');
+      }
+    }
+    
+    // =================================================================
+    // KEYBOARD SHORTCUTS
+    // =================================================================
+    function setupKeyboardShortcuts() {
+      document.addEventListener('keydown', function(e) {
+        // Ctrl+S or Cmd+S to save annotation
+        if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+          e.preventDefault();
+          saveCurrentAnnotation();
+        }
+      });
+    }
+    
+    // =================================================================
+    // UTILITY FUNCTIONS
+    // =================================================================
+    function showStatus(elementId, type, message) {
+      const element = document.getElementById(elementId);
+      if (!element) return;
+      
+      element.className = `status ${type}`;
+      element.textContent = message;
+      element.style.display = 'block';
+      
+      if (type === 'success' || type === 'info') {
+        setTimeout(() => {
+          element.style.display = 'none';
+        }, 4000);
+      }
+    }
+    
+    function togglePanel(panelId) {
+      const panel = document.getElementById(panelId);
+      if (panel) {
+        panel.classList.toggle('collapsed');
+      }
+    }
+    
+    function toggleAnnotationSection(sectionId) {
+      const content = document.getElementById(sectionId + 'Content');
+      const icon = document.getElementById(sectionId + 'Icon');
+      
+      if (content && icon) {
+        content.classList.toggle('collapsed');
+        icon.textContent = content.classList.contains('collapsed') ? '▶' : '▼';
+      }
+    }
+    
+    function updateStatistics() {
+      const total = annotations.length;
+      let lines = 0, boxes = 0, polygons = 0;
+      
+      annotations.forEach(ann => {
+        if (ann.type === 'line') lines++;
+        else if (ann.type === 'box') boxes++;
+        else if (ann.type === 'polygon') polygons++;
+      });
+      
+      // Only update if elements exist (stats panel is commented out)
+      const statTotal = document.getElementById('statTotal');
+      const statLines = document.getElementById('statLines');
+      const statBoxes = document.getElementById('statBoxes');
+      const statPolygons = document.getElementById('statPolygons');
+      
+      if (statTotal) statTotal.textContent = total;
+      if (statLines) statLines.textContent = lines;
+      if (statBoxes) statBoxes.textContent = boxes;
+      if (statPolygons) statPolygons.textContent = polygons;
+      
+      // Show stats panel if there are annotations and panel exists
+      const statsPanel = document.getElementById('statsPanel');
+      if (statsPanel) {
+        statsPanel.style.display = total > 0 ? 'block' : 'none';
+      }
+    }
+    
+    function clearForm() {
+      // Clear variable fields but keep core metadata
+      document.getElementById('spcode').value = '';
+      document.getElementById('morph_code').value = '';
+      document.getElementById('no_colony').value = '0';
+      document.getElementById('juvenile').value = '0';
+      document.getElementById('juv_substrate').value = '';
+      document.getElementById('remnant').value = '0';
+      document.getElementById('ex_bound').value = '0';
+      document.getElementById('olddead').value = '';
+      document.getElementById('rdcause1').value = '';
+      document.getElementById('rd_1').value = '';
+      document.getElementById('rdcause2').value = '';
+      document.getElementById('rd_2').value = '';
+      document.getElementById('rdcause3').value = '';
+      document.getElementById('rd_3').value = '';
+      document.getElementById('con_1').value = '';
+      document.getElementById('extent_1').value = '';
+      document.getElementById('sev_1').value = '';
+      document.getElementById('con_2').value = '';
+      document.getElementById('extent_2').value = '';
+      document.getElementById('sev_2').value = '';
+      document.getElementById('con_3').value = '';
+      document.getElementById('extent_3').value = '';
+      document.getElementById('sev_3').value = '';
+      
+      showStatus('formStatus', 'info', '🔄 Form cleared');
+    }
+    
+    // =================================================================
+    // DRAWING EVENTS
+    // =================================================================
+    function onDrawCreated(e) {
+      const layer = e.layer;
+      const type = e.layerType;
+      
+      drawnItems.addLayer(layer);
+      
+      // Show annotation form
+      document.getElementById('annotationPanel').style.display = 'block';
+      
+      // Store the layer reference for the current annotation
+      currentAnnotationId = `ann_${Date.now()}`;
+      layer.annotationId = currentAnnotationId;
+      
+      // Start annotation timer
+      startAnnotationTimer();
+      
+      showStatus('formStatus', 'info', '✏️ Draw complete! Fill out the form and save.');
+    }
+    
+    function onDrawEdited(e) {
+      const layers = e.layers;
+      layers.eachLayer((layer) => {
+        if (layer.annotationId) {
+          const ann = annotations.find(a => a.id === layer.annotationId);
+          if (ann) {
+            // Use full precision geometry extraction
+            ann.geometry = getFullPrecisionGeometry(layer);
+            console.log('✏️ Updated geometry for annotation', layer.annotationId);
+          }
+        }
+      });
+      
+      saveToLocalStorage();
+      showStatus('formStatus', 'success', '✅ Annotation geometry updated');
+    }
+    
+    function onDrawDeleted(e) {
+      const layers = e.layers;
+      layers.eachLayer((layer) => {
+        if (layer.annotationId) {
+          // Remove label from map if it exists
+          const layerId = layer._leaflet_id;
+          if (annotationLabels.has(layerId)) {
+            const label = annotationLabels.get(layerId);
+            if (map.hasLayer(label)) {
+              map.removeLayer(label);
+            }
+            annotationLabels.delete(layerId);
+          }
+          
+          annotations = annotations.filter(a => a.id !== layer.annotationId);
+          console.log('🗑️ Deleted annotation', layer.annotationId);
+        }
+      });
+      
+      renderAnnotationTable();
+      updateStatistics();
+      saveToLocalStorage();
+      showStatus('formStatus', 'info', '🗑️ Annotation deleted');
+    }
+    
+    // =================================================================
+    // ANNOTATION FORM
+    // =================================================================
+    function saveCurrentAnnotation() {
+      // Validate required fields
+      const analyst = document.getElementById('analyst').value.trim();
+      const obs_year = document.getElementById('obs_year').value;
+      const mission_id = document.getElementById('mission_id').value.trim();
+      const site = document.getElementById('site').value.trim();
+      
+      if (!analyst || !obs_year || !mission_id || !site) {
+        showStatus('formStatus', 'error', '❌ Please fill in all required fields (Analyst, Year, Mission ID, Site)');
+        return;
+      }
+      
+      if (!currentAnnotationId) {
+        showStatus('formStatus', 'error', '❌ Please draw a shape on the map first');
+        return;
+      }
+      
+      // Find the layer
+      let layer = null;
+      drawnItems.eachLayer((l) => {
+        if (l.annotationId === currentAnnotationId) {
+          layer = l;
+        }
+      });
+      
+      if (!layer) {
+        showStatus('formStatus', 'error', '❌ Could not find the drawn shape');
+        return;
+      }
+      
+      // Get full precision geometry
+      const geometry = getFullPrecisionGeometry(layer);
+      
+      // Determine type
+      let type = 'polygon';
+      if (geometry.type === 'LineString') {
+        type = 'line';
+      } else if (geometry.type === 'Polygon') {
+        if (isRectangle(geometry.coordinates[0])) {
+          type = 'box';
+        } else {
+          type = 'polygon';
+        }
+      }
+      
+      // Create annotation object with all fields
+      const annotation = {
+        id: currentAnnotationId,
+        annotation_id: annotationCounter++,
+        type: type,
+        geometry: geometry,
+        properties: {
+          analyst: analyst,
+          obs_year: parseInt(obs_year),
+          mission_id: mission_id,
+          site: site,
+          transect: document.getElementById('transect').value || '',
+          segment: document.getElementById('segment').value || '',
+          seglength: parseFloat(document.getElementById('seglength').value) || null,
+          segwidth: parseFloat(document.getElementById('segwidth').value) || null,
+          spcode: document.getElementById('spcode').value.trim() || '',
+          morph_code: document.getElementById('morph_code').value.trim() || '',
+          no_colony: parseInt(document.getElementById('no_colony').value) || 0,
+          juvenile: parseInt(document.getElementById('juvenile').value) || 0,
+          juv_substrate: document.getElementById('juv_substrate').value.trim() || '',
+          remnant: parseInt(document.getElementById('remnant').value) || 0,
+          ex_bound: parseInt(document.getElementById('ex_bound').value) || 0,
+          olddead: parseInt(document.getElementById('olddead').value) || 0,
+          rdcause1: document.getElementById('rdcause1').value.trim() || '',
+          rd_1: parseInt(document.getElementById('rd_1').value) || 0,
+          rdcause2: document.getElementById('rdcause2').value.trim() || '',
+          rd_2: parseInt(document.getElementById('rd_2').value) || 0,
+          rdcause3: document.getElementById('rdcause3').value.trim() || '',
+          rd_3: parseInt(document.getElementById('rd_3').value) || 0,
+          con_1: document.getElementById('con_1').value.trim() || '',
+          extent_1: parseInt(document.getElementById('extent_1').value) || 0,
+          sev_1: parseInt(document.getElementById('sev_1').value) || 0,
+          con_2: document.getElementById('con_2').value.trim() || '',
+          extent_2: parseInt(document.getElementById('extent_2').value) || 0,
+          sev_2: parseInt(document.getElementById('sev_2').value) || 0,
+          con_3: document.getElementById('con_3').value.trim() || '',
+          extent_3: parseInt(document.getElementById('extent_3').value) || 0,
+          sev_3: parseInt(document.getElementById('sev_3').value) || 0
+        },
+        created: new Date().toISOString()
+      };
+      
+      // Log coordinate precision (show first coordinate as example)
+      if (geometry.coordinates && geometry.coordinates.length > 0) {
+        const firstCoord = geometry.type === 'Polygon' ? geometry.coordinates[0][0] : geometry.coordinates[0];
+        console.log(`📍 Coordinate precision: [${firstCoord[0]}, ${firstCoord[1]}] (${firstCoord[0].toString().length} digits)`);
+      }
+      
+      // Check if updating existing annotation
+      const existingIndex = annotations.findIndex(a => a.id === currentAnnotationId);
+      if (existingIndex >= 0) {
+        annotations[existingIndex] = annotation;
+        console.log('✏️ Updated annotation', currentAnnotationId);
+        
+        // Update label if visible
+        drawnItems.eachLayer((l) => {
+          if (l.annotationId === currentAnnotationId) {
+            if (labelsVisible) {
+              addLabelToAnnotation(l, existingIndex);
+            }
+          }
+        });
+      } else {
+        const newIndex = annotations.length;
+        annotations.push(annotation);
+        console.log('✅ Added annotation', currentAnnotationId);
+        
+        // Add click handler and label to the newly saved annotation
+        drawnItems.eachLayer((l) => {
+          if (l.annotationId === currentAnnotationId) {
+            // Add click handler
+            l.on('click', function(e) {
+              L.DomEvent.stopPropagation(e);
+              showAnnotationPopup(l, e.latlng, newIndex);
+            });
+            
+            // Add label if labels are visible
+            if (labelsVisible) {
+              addLabelToAnnotation(l, newIndex);
+            }
+          }
+        });
+      }
+      
+      // Stop annotation timer
+      stopAnnotationTimer();
+      
+      // Clear form and current ID
+      clearForm();
+      currentAnnotationId = null;
+      
+      // Update UI
+      renderAnnotationTable();
+      updateStatistics();
+      saveToLocalStorage();
+      
+      showStatus('formStatus', 'success', `✅ Annotation #${annotation.annotation_id} saved! Draw another or continue annotating.`);
+    }
+    
+    function isRectangle(coords) {
+      if (coords.length !== 5) return false;
+      // Simple check: opposite sides are parallel
+      return true; // Simplified - you can add more rigorous checks
+    }
+    
+    // =================================================================
+    // ANNOTATIONS TABLE
+    // =================================================================
+    function renderAnnotationTable() {
+      const tbody = document.getElementById('annotationTableBody');
+      document.getElementById('annotationCount').textContent = annotations.length;
+      
+      if (annotations.length === 0) {
+        tbody.innerHTML = `
+          <tr>
+            <td colspan="11" style="text-align: center; padding: 20px; color: #6c757d;">
+              No annotations yet - draw on the map to create one
+            </td>
+          </tr>
+        `;
+        return;
+      }
+      
+      tbody.innerHTML = annotations.map(ann => `
+        <tr onclick="zoomToAnnotation('${ann.id}')">
+          <td>${ann.annotation_id}</td>
+          <td>${ann.type}</td>
+          <td>${ann.properties.site}</td>
+          <td>${ann.properties.spcode || '-'}</td>
+          <td>${ann.properties.juvenile === -1 ? 'Yes' : 'No'}</td>
+          <td>${ann.properties.juv_substrate || '-'}</td>
+          <td>${ann.properties.transect || '-'}</td>
+          <td>${ann.properties.segment || '-'}</td>
+          <td>${ann.properties.morph_code || '-'}</td>
+          <td>${ann.properties.olddead || '-'}</td>
+          <td onclick="event.stopPropagation()">
+            <button class="action-btn action-btn-edit" onclick="editAnnotation('${ann.id}')">✏️</button>
+            <button class="action-btn action-btn-delete" onclick="deleteAnnotation('${ann.id}')">🗑️</button>
+          </td>
+        </tr>
+      `).join('');
+      
+      updateStatistics();
+    }
+    
+    function zoomToAnnotation(id) {
+      drawnItems.eachLayer((layer) => {
+        if (layer.annotationId === id) {
+          map.fitBounds(layer.getBounds(), { padding: [50, 50] });
+        }
+      });
+    }
+    
+    function editAnnotation(id) {
+      const ann = annotations.find(a => a.id === id);
+      if (!ann) return;
+      
+      // Populate all form fields
+      document.getElementById('analyst').value = ann.properties.analyst;
+      document.getElementById('obs_year').value = ann.properties.obs_year;
+      document.getElementById('mission_id').value = ann.properties.mission_id;
+      document.getElementById('site').value = ann.properties.site;
+      document.getElementById('transect').value = ann.properties.transect || '';
+      document.getElementById('segment').value = ann.properties.segment || '';
+      document.getElementById('seglength').value = ann.properties.seglength || '';
+      document.getElementById('segwidth').value = ann.properties.segwidth || '';
+      document.getElementById('spcode').value = ann.properties.spcode || '';
+      document.getElementById('morph_code').value = ann.properties.morph_code || '';
+      document.getElementById('no_colony').value = (ann.properties.no_colony || 0).toString();
+      document.getElementById('juvenile').value = (ann.properties.juvenile || 0).toString();
+      document.getElementById('juv_substrate').value = ann.properties.juv_substrate || '';
+      document.getElementById('remnant').value = (ann.properties.remnant || 0).toString();
+      document.getElementById('ex_bound').value = (ann.properties.ex_bound || 0).toString();
+      document.getElementById('olddead').value = ann.properties.olddead || '';
+      document.getElementById('rdcause1').value = ann.properties.rdcause1 || '';
+      document.getElementById('rd_1').value = ann.properties.rd_1 || '';
+      document.getElementById('rdcause2').value = ann.properties.rdcause2 || '';
+      document.getElementById('rd_2').value = ann.properties.rd_2 || '';
+      document.getElementById('rdcause3').value = ann.properties.rdcause3 || '';
+      document.getElementById('rd_3').value = ann.properties.rd_3 || '';
+      document.getElementById('con_1').value = ann.properties.con_1 || '';
+      document.getElementById('extent_1').value = ann.properties.extent_1 || '';
+      document.getElementById('sev_1').value = ann.properties.sev_1 || '';
+      document.getElementById('con_2').value = ann.properties.con_2 || '';
+      document.getElementById('extent_2').value = ann.properties.extent_2 || '';
+      document.getElementById('sev_2').value = ann.properties.sev_2 || '';
+      document.getElementById('con_3').value = ann.properties.con_3 || '';
+      document.getElementById('extent_3').value = ann.properties.extent_3 || '';
+      document.getElementById('sev_3').value = ann.properties.sev_3 || '';
+      
+      currentAnnotationId = id;
+      
+      // Zoom to annotation
+      zoomToAnnotation(id);
+      
+      // Show and expand the annotation panel
+      const panel = document.getElementById('annotationPanel');
+      panel.style.display = 'block';
+      
+      // Make sure the form section is expanded
+      const formSection = document.getElementById('annotationFormSection');
+      const formContent = document.getElementById('annotationFormSectionContent');
+      if (formSection && formContent) {
+        formContent.style.display = 'block';
+        const toggleBtn = formSection.querySelector('.toggle-btn');
+        if (toggleBtn) toggleBtn.textContent = '▼';
+      }
+      
+      // Scroll form into view
+      if (formSection) {
+        formSection.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+      
+      showStatus('formStatus', 'info', '✏️ Editing annotation #' + ann.annotation_id + ' - modify fields and click Save');
+    }
+    
+    function deleteAnnotation(id) {
+      if (!confirm('Delete this annotation?')) return;
+      
+      // Remove label from map if it exists
+      drawnItems.eachLayer((layer) => {
+        if (layer.annotationId === id) {
+          const layerId = layer._leaflet_id;
+          if (annotationLabels.has(layerId)) {
+            const label = annotationLabels.get(layerId);
+            if (map.hasLayer(label)) {
+              map.removeLayer(label);
+            }
+            annotationLabels.delete(layerId);
+          }
+        }
+      });
+      
+      // Remove from array
+      annotations = annotations.filter(a => a.id !== id);
+      
+      // Remove from map
+      drawnItems.eachLayer((layer) => {
+        if (layer.annotationId === id) {
+          drawnItems.removeLayer(layer);
+        }
+      });
+      
+      renderAnnotationTable();
+      saveToLocalStorage();
+      showStatus('formStatus', 'info', '🗑️ Annotation deleted');
+    }
+    
+    // =================================================================
+    // COG LOADING
+    // =================================================================
+    function addManualCogs() {
+      const textarea = document.getElementById('cogPathsInput');
+      const paths = textarea.value.split(/[\n,]/).map(p => p.trim()).filter(p => p);
+      
+      if (paths.length === 0) {
+        showStatus('uploadStatus', 'error', '❌ Please enter at least one GCS path');
+        return;
+      }
+      
+      let addedCount = 0;
+      paths.forEach(path => {
+        if (!path.startsWith('gs://')) {
+          showStatus('uploadStatus', 'error', `❌ Invalid GCS path: ${path}`);
+          return;
+        }
+        
+        loadCogFromPath(path);
+        addedCount++;
+      });
+      
+      textarea.value = '';
+      if (addedCount > 0) {
+        showStatus('uploadStatus', 'success', `✅ Loading ${addedCount} COG file(s)...`);
+      }
+    }
+    
+    function useDemoFile() {
+      const demoPath = 'gs://nmfs_odp_pifsc/PIFSC/ESD/ARP/StRS_Sites_Products/orthomosaic_cog/2025_GUA-2838_mos_cog.tif';
+      
+      // Set form defaults for demo
+      document.getElementById('analyst').value = 'DEMO';
+      document.getElementById('obs_year').value = '2025';
+      document.getElementById('mission_id').value = 'GUA-2838';
+      document.getElementById('site').value = 'GUA-2838';
+      
+      // Load the demo COG
+      loadCogFromPath(demoPath);
+      
+      showStatus('uploadStatus', 'success', '🎬 Loading demo file: 2025_GUA-2838_mos_cog.tif');
+      console.log('🎬 Loading demo file');
+    }
+    
+    async function loadCogFromPath(gcsPath) {
+      try {
+        const encodedPath = encodeURIComponent(gcsPath);
+        
+        // Get TileJSON
+        const tilejsonResponse = await fetch(`${TILE_SERVER_URL}/WebMercatorQuad/tilejson.json?url=${encodedPath}`);
+        if (!tilejsonResponse.ok) {
+          throw new Error(`Failed to fetch TileJSON: ${tilejsonResponse.status}`);
+        }
+        
+        const tilejson = await tilejsonResponse.json();
+        const bounds = tilejson.bounds;
+        const leafletBounds = [[bounds[1], bounds[0]], [bounds[3], bounds[2]]];
+        
+        // Create tile layer
+        const tileUrl = `${TILE_SERVER_URL}/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodedPath}`;
+        const layer = L.tileLayer(tileUrl, {
+          maxZoom: 2000,
+          opacity: 1.0,
+          attribution: gcsPath.split('/').pop()
+        }).addTo(map);
+        
+        cogLayers.push({
+          path: gcsPath,
+          name: gcsPath.split('/').pop(),
+          layer: layer,
+          bounds: leafletBounds
+        });
+        
+        // Zoom to first COG
+        if (cogLayers.length === 1) {
+          map.fitBounds(leafletBounds, { padding: [50, 50], maxZoom: 24 });
+        }
+        
+        renderCogList();
+        showStatus('uploadStatus', 'success', `✅ Loaded ${gcsPath.split('/').pop()}`);
+        
+      } catch (error) {
+        console.error('Error loading COG:', error);
+        showStatus('uploadStatus', 'error', `❌ Error loading COG: ${error.message}`);
+      }
+    }
+    
+    function renderCogList() {
+      const container = document.getElementById('cogList');
+      const layersContainer = document.getElementById('cogLayersContainer');
+      
+      if (cogLayers.length === 0) {
+        container.innerHTML = '';
+        layersContainer.style.display = 'none';
+        return;
+      }
+      
+      layersContainer.style.display = 'block';
+      
+      container.innerHTML = cogLayers.map((cog, idx) => `
+        <div style="margin-bottom: 10px; padding: 10px; background: white; border: 1px solid #ddd; border-radius: 6px;">
+          <!-- Layer Header -->
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
+              <input 
+                type="checkbox" 
+                id="cog_visible_${idx}" 
+                ${map.hasLayer(cog.layer) ? 'checked' : ''}
+                onchange="toggleCogVisibility(${idx})"
+                style="cursor: pointer;">
+              <label for="cog_visible_${idx}" style="cursor: pointer; font-size: 12px; font-weight: 600; color: #333; flex: 1; word-break: break-all;">
+                ${cog.name}
+              </label>
+            </div>
+            <button 
+              onclick="removeCog(${idx})" 
+              style="padding: 4px 8px; background: #dc3545; color: white; border: none; border-radius: 3px; cursor: pointer; font-size: 10px;"
+              title="Remove layer">
+              🗑️
+            </button>
+          </div>
+          
+          <!-- Opacity Control -->
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <label style="font-size: 11px; color: #666; min-width: 60px;">Opacity:</label>
+            <input 
+              type="range" 
+              id="cog_opacity_${idx}" 
+              min="0" 
+              max="100" 
+              value="${(cog.layer.options.opacity * 100).toFixed(0)}"
+              oninput="updateCogOpacity(${idx}, this.value)"
+              style="flex: 1; cursor: pointer;">
+            <span id="cog_opacity_value_${idx}" style="font-size: 11px; color: #666; min-width: 35px; text-align: right;">
+              ${(cog.layer.options.opacity * 100).toFixed(0)}%
+            </span>
+          </div>
+          
+          <!-- Zoom to Layer Button -->
+          <button 
+            onclick="zoomToCog(${idx})" 
+            style="width: 100%; margin-top: 8px; padding: 6px; background: #667eea; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 11px; font-weight: 600;"
+            title="Zoom to this layer">
+            📍 Zoom to Layer
+          </button>
+        </div>
+      `).join('');
+    }
+    
+    function toggleCogVisibility(index) {
+      const cog = cogLayers[index];
+      if (map.hasLayer(cog.layer)) {
+        map.removeLayer(cog.layer);
+      } else {
+        cog.layer.addTo(map);
+      }
+    }
+    
+    function updateCogOpacity(index, value) {
+      const cog = cogLayers[index];
+      const opacity = value / 100;
+      cog.layer.setOpacity(opacity);
+      document.getElementById(`cog_opacity_value_${index}`).textContent = `${value}%`;
+    }
+    
+    function removeCog(index) {
+      const cog = cogLayers[index];
+      if (map.hasLayer(cog.layer)) {
+        map.removeLayer(cog.layer);
+      }
+      cogLayers.splice(index, 1);
+      renderCogList();
+      showStatus('uploadStatus', 'info', `🗑️ Removed ${cog.name}`);
+    }
+    
+    function zoomToCog(index) {
+      const cog = cogLayers[index];
+      if (cog.bounds) {
+        map.fitBounds(cog.bounds, { padding: [50, 50], maxZoom: 24 });
+        showStatus('uploadStatus', 'info', `📍 Zoomed to ${cog.name}`);
+      }
+    }
+    
+    function clearAllCogs() {
+      if (cogLayers.length === 0) return;
+      
+      if (confirm(`Remove all ${cogLayers.length} COG layer(s)?`)) {
+        cogLayers.forEach(cog => {
+          if (map.hasLayer(cog.layer)) {
+            map.removeLayer(cog.layer);
+          }
+        });
+        cogLayers = [];
+        renderCogList();
+        showStatus('uploadStatus', 'success', '✅ All COG layers cleared');
+      }
+    }
+    
+    // =================================================================
+    // PROJECT MANAGEMENT
+    // =================================================================
+    function setupProjectInput() {
+      document.getElementById('projectInput').addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+          loadProjectFile(e.target.files[0]);
+        }
+      });
+    }
+    
+    function setupDropZones() {
+      const zone = document.getElementById('projectDropZone');
+      
+      zone.addEventListener('click', () => {
+        document.getElementById('projectInput').click();
+      });
+      
+      zone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        zone.classList.add('drag-over');
+      });
+      
+      zone.addEventListener('dragleave', () => {
+        zone.classList.remove('drag-over');
+      });
+      
+      zone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        zone.classList.remove('drag-over');
+        
+        if (e.dataTransfer.files.length > 0) {
+          loadProjectFile(e.dataTransfer.files[0]);
+        }
+      });
+    }
+    
+    function loadProjectFile(file) {
+      const reader = new FileReader();
+      
+      reader.onload = (e) => {
+        try {
+          projectData = JSON.parse(e.target.result);
+          
+          // Load COG files
+          if (projectData.tif_files && projectData.tif_files.length > 0) {
+            projectData.tif_files.forEach(tif => {
+              if (tif.cog_path && tif.cog_path.startsWith('gs://')) {
+                loadCogFromPath(tif.cog_path);
+              }
+            });
+          }
+          
+          // Load annotations if present
+          if (projectData.annotations && projectData.annotations.length > 0) {
+            loadAnnotationsFromProject(projectData.annotations);
+          }
+          
+          // Pre-fill form with project metadata
+          if (projectData.metadata) {
+            document.getElementById('analyst').value = projectData.metadata.observer || '';
+            document.getElementById('obs_year').value = projectData.year || new Date().getFullYear();
+            document.getElementById('mission_id').value = projectData.cruise || '';
+            document.getElementById('site').value = projectData.site || '';
+          }
+          
+          showStatus('uploadStatus', 'success', `✅ Loaded project: ${projectData.project_name}`);
+          
+        } catch (error) {
+          showStatus('uploadStatus', 'error', `❌ Invalid project file: ${error.message}`);
+        }
+      };
+      
+      reader.readAsText(file);
+    }
+    
+    function loadAnnotationsFromProject(annotationsData) {
+      annotationsData.forEach((ann, idx) => {
+        // Add to map
+        const geojson = {
+          type: 'Feature',
+          geometry: ann.geometry,
+          properties: ann.properties
+        };
+        
+        const layer = L.geoJSON(geojson, {
+          style: {
+            color: '#667eea',
+            weight: 2,
+            fillOpacity: 0.3
+          }
+        }).getLayers()[0];
+        
+        layer.annotationId = ann.id || `ann_${Date.now()}_${Math.random()}`;
+        drawnItems.addLayer(layer);
+        
+        // Add to annotations array
+        const annotation = {
+          id: layer.annotationId,
+          annotation_id: ann.annotation_id || annotationCounter++,
+          type: ann.type,
+          geometry: ann.geometry,
+          properties: ann.properties,
+          created: ann.created || new Date().toISOString()
+        };
+        annotations.push(annotation);
+        
+        // Add click handler to show popup
+        const annotationIndex = annotations.length - 1;
+        layer.on('click', function(e) {
+          L.DomEvent.stopPropagation(e);
+          showAnnotationPopup(layer, e.latlng, annotationIndex);
+        });
+        
+        // Add label if labels are visible
+        if (labelsVisible) {
+          addLabelToAnnotation(layer, annotationIndex);
+        }
+      });
+      
+      renderAnnotationTable();
+      
+      // Show annotation panel if annotations were loaded
+      if (annotationsData.length > 0) {
+        document.getElementById('annotationPanel').style.display = 'block';
+      }
+      
+      console.log(`✅ Loaded ${annotationsData.length} annotations from project`);
+    }
+    
+    function saveProject() {
+      if (!projectData) {
+        // Create new project
+        projectData = {
+          project_name: 'CAT_Annotation_Project',
+          site: document.getElementById('site').value || 'Unknown',
+          cruise: document.getElementById('mission_id').value || 'Unknown',
+          year: parseInt(document.getElementById('obs_year').value) || new Date().getFullYear(),
+          region: '',
+          created_date: new Date().toISOString().split('T')[0],
+          annotations_file: 'annotations.json',
+          tif_files: cogLayers.map((cog, idx) => ({
+            id: `cog_${idx}`,
+            name: cog.name,
+            cog_path: cog.path,
+            type: 'cog',
+            source: 'gcs'
+          })),
+          metadata: {
+            observer: document.getElementById('analyst').value || '',
+            institution: 'NOAA'
+          }
+        };
+      }
+      
+      // Update annotations
+      projectData.annotations = annotations;
+      projectData.metadata.annotation_count = annotations.length;
+      projectData.metadata.last_modified = new Date().toISOString();
+      
+      // Download
+      const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${projectData.project_name.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      saveToLocalStorage();
+      showStatus('formStatus', 'success', '✅ Project saved! File downloaded to your computer.');
+    }
+    
+    function exportAnnotations() {
+      if (annotations.length === 0) {
+        showStatus('formStatus', 'error', '❌ No annotations to export');
+        return;
+      }
+      
+      const blob = new Blob([JSON.stringify(annotations, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `annotations_${new Date().toISOString().split('T')[0]}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      showStatus('formStatus', 'success', `✅ Exported ${annotations.length} annotation(s)`);
+    }
+    
+    // =================================================================
+    // LOCAL STORAGE
+    // =================================================================
+    function saveToLocalStorage() {
+      try {
+        const state = {
+          annotations: annotations,
+          projectData: projectData,
+          cogPaths: cogLayers.map(c => c.path),
+          formData: {
+            analyst: document.getElementById('analyst').value,
+            obs_year: document.getElementById('obs_year').value,
+            mission_id: document.getElementById('mission_id').value,
+            site: document.getElementById('site').value
+          },
+          timestamp: new Date().toISOString()
+        };
+        localStorage.setItem('cat_annotation_state', JSON.stringify(state));
+        console.log('💾 Saved to localStorage');
+      } catch (error) {
+        console.error('Failed to save to localStorage:', error);
+      }
+    }
+    
+    function loadFromLocalStorage() {
+      try {
+        const saved = localStorage.getItem('cat_annotation_state');
+        if (saved) {
+          const state = JSON.parse(saved);
+          
+          // Restore form data
+          if (state.formData) {
+            document.getElementById('analyst').value = state.formData.analyst || '';
+            document.getElementById('obs_year').value = state.formData.obs_year || '';
+            document.getElementById('mission_id').value = state.formData.mission_id || '';
+            document.getElementById('site').value = state.formData.site || '';
+          }
+          
+          // Restore COGs
+          if (state.cogPaths && state.cogPaths.length > 0) {
+            state.cogPaths.forEach(path => loadCogFromPath(path));
+          }
+          
+          // Restore annotations
+          if (state.annotations && state.annotations.length > 0) {
+            loadAnnotationsFromProject(state.annotations);
+          }
+          
+          // Restore project data
+          if (state.projectData) {
+            projectData = state.projectData;
+          }
+          
+          showStatus('uploadStatus', 'info', `📥 Restored session from ${new Date(state.timestamp).toLocaleString()}`);
+        }
+      } catch (error) {
+        console.error('Failed to load from localStorage:', error);
+      }
+    }
+    
+    // =================================================================
+    // UI UTILITIES
+    // =================================================================
+    // MODAL FUNCTIONS
+    // =================================================================
+    function closeEditModal() {
+      const modal = document.getElementById('editModal');
+      if (modal) {
+        modal.classList.remove('active');
+      }
+    }
+    
+    function saveEditedAnnotation() {
+      // For now, just close the modal
+      // This would be enhanced to actually save edits from the modal
+      closeEditModal();
+      showStatus('formStatus', 'info', 'Modal edit feature coming soon - use inline edit for now');
+    }
+    
+    // =================================================================
+    // STARTUP
+    // =================================================================
+    document.addEventListener('DOMContentLoaded', init);
+    
+    // Auto-save periodically
+    setInterval(saveToLocalStorage, 30000); // Every 30 seconds
+  </script>
+</body>
+</html>
