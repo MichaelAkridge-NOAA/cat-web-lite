@@ -210,6 +210,7 @@
             <span class="chip" id="chipReveal" title="Reveal along image track (R)">Reveal Track (R)</span>
             <span class="chip" id="chipTour">Fly Tour</span>
             <span class="chip" id="chipFullRes" title="Texture camera frustums with full-resolution photos instead of thumbnails">Full-Res Photos</span>
+            <span class="chip" id="chipTrueOrient" title="Orient frustums using the real COLMAP camera pose instead of always facing the focus point">True Camera Angle</span>
           </div>
         </div>
 
@@ -369,6 +370,7 @@
     let revealBox = null;
     let revealIdx = 0;
     let useFullResTextures = false;
+    let trueOrientation = false;
 
     function resizeOverlay() {
       const wrap = document.getElementById('viewerWrap');
@@ -502,6 +504,18 @@
         const cWorld = cameraCenterCloud(cam).add(alignDelta);
         const g = new T.Group();
         g.position.copy(cWorld);
+
+        // World->camera rotation R and translation t (COLMAP convention), for point-in-image
+        // projection and for the "true orientation" toggle below.
+        const q = new T.Quaternion(cam.qx, cam.qy, cam.qz, cam.qw);
+        const Rmat = new T.Matrix4().makeRotationFromQuaternion(q);
+        const tvec = new T.Vector3(cam.tx, cam.ty, cam.tz);
+
+        // Real capture orientation: camera->world is R^T; COLMAP/OpenCV cameras look down +Z
+        // (Y down) but our frustum geometry looks down -Z (Y up, like lookAt), so flip 180° about X.
+        const camToWorld = Rmat.clone().transpose().multiply(new T.Matrix4().makeRotationX(Math.PI));
+        const trueQuat = new T.Quaternion().setFromRotationMatrix(camToWorld);
+
         g.lookAt(sceneCentroid);
         const frustum = buildFrustum(frustumSize, frustumDepth);
         g.add(frustum);
@@ -514,11 +528,7 @@
         const ray = new T.Line(rayGeo, rayMat);
         rayGroup.add(ray);
 
-        // Store world->camera rotation R and translation t for point-in-image projection.
-        const q = new T.Quaternion(cam.qx, cam.qy, cam.qz, cam.qw);
-        const Rmat = new T.Matrix4().makeRotationFromQuaternion(q);
-        const tvec = new T.Vector3(cam.tx, cam.ty, cam.tz);
-        cameraEntries.push({ base: cWorld.clone(), group: g, plane, frustum, name: cam.name, ray, Rmat, t: tvec });
+        cameraEntries.push({ base: cWorld.clone(), group: g, plane, frustum, name: cam.name, ray, Rmat, t: tvec, trueQuat });
       });
 
       applyExplode(CFG.defaultExplode);
@@ -543,7 +553,8 @@
           .add(from.multiplyScalar(spread))
           .add(upWorld.clone().multiplyScalar(lift));
         entry.group.position.copy(pos);
-        entry.group.lookAt(sceneCentroid);
+        if (trueOrientation) entry.group.quaternion.copy(entry.trueQuat);
+        else entry.group.lookAt(sceneCentroid);
         entry.ray.geometry.setFromPoints([pos.clone(), sceneCentroid.clone()]);
         entry.ray.geometry.attributes.position.needsUpdate = true;
       });
@@ -565,7 +576,8 @@
           sceneCentroid.z + yy * radius
         );
         entry.group.position.copy(pos);
-        entry.group.lookAt(sceneCentroid);
+        if (trueOrientation) entry.group.quaternion.copy(entry.trueQuat);
+        else entry.group.lookAt(sceneCentroid);
         entry.ray.geometry.setFromPoints([pos.clone(), sceneCentroid.clone()]);
         entry.ray.geometry.attributes.position.needsUpdate = true;
       });
@@ -1027,6 +1039,11 @@
         const visibleCount = cameraEntries.filter(en => en.group.visible && en.plane.material.map).length;
         setStatus(useFullResTextures ? 'Reloading visible frustums with full-resolution photos (slower)...' : 'Reloading visible frustums with thumbnails...');
         loadThumbnails(Math.max(visibleCount, CFG.previewThumbs), true);
+      });
+      document.getElementById('chipTrueOrient').addEventListener('click', e => {
+        trueOrientation = !trueOrientation;
+        e.target.classList.toggle('active', trueOrientation);
+        applyExplode(Number(document.getElementById('explodeSlider').value) / 100);
       });
       document.getElementById('chipOrbit').addEventListener('click', e => {
         autoOrbitOn = !autoOrbitOn;
