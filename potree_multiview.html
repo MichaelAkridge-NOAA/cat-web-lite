@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CAT Lite - Photogrametry Multi-View</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <style>
+    :root {
+      --ink: #0f2b46;
+      --ink-soft: #355877;
+      --panel: rgba(255, 255, 255, 0.96);
+      --accent: #1769aa;
+      --border: #d8e6f2;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background: linear-gradient(180deg, #e7f2fa 0%, #f6fbff 100%);
+      min-height: 100vh;
+    }
+    .shell { max-width: 1500px; margin: 0 auto; padding: 14px; display: grid; gap: 14px; }
+    .navbar {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 4px 18px rgba(17, 44, 70, 0.1); padding: 10px 14px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; font-weight: 700; }
+    .brand img { width: 32px; height: 32px; object-fit: contain; }
+    .nav-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    .btn {
+      border: 0; border-radius: 8px; padding: 8px 12px; font-size: 13px; font-weight: 600;
+      cursor: pointer; text-decoration: none; display: inline-block;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(17, 44, 70, 0.14); }
+    .btn-primary { background: var(--accent); color: #fff; }
+    .btn-secondary { background: #eef6ff; color: var(--accent); border: 1px solid #cfe3f8; }
+    .card {
+      background: var(--panel); border: 1px solid var(--border); border-radius: 10px;
+      box-shadow: 0 4px 18px rgba(17, 44, 70, 0.08);
+    }
+    .card-header {
+      display: flex; justify-content: space-between; align-items: center; gap: 10px;
+      flex-wrap: wrap; padding: 10px 12px; border-bottom: 1px solid var(--border);
+    }
+    .card-title { font-size: 14px; font-weight: 700; }
+    .section-title {
+      font-size: 13px; letter-spacing: 0.02em; text-transform: uppercase;
+      color: var(--ink-soft); font-weight: 700; margin-bottom: 6px;
+    }
+
+    .viewer-wrap {
+      position: relative; width: 100%; height: 72vh; min-height: 460px;
+      border-radius: 0 0 10px 10px; overflow: hidden;
+      background: radial-gradient(circle at 50% 40%, #0b2c47 0%, #05121f 100%);
+    }
+    #potree_render_area { position: absolute; inset: 0; z-index: 1; }
+    /* Transparent overlay for exploded cameras, camera synced to Potree each frame. */
+    #overlayCanvas { position: absolute; inset: 0; z-index: 10; pointer-events: none; }
+
+    .viewer-hud {
+      position: absolute; top: 12px; left: 12px; z-index: 20;
+      background: rgba(6, 20, 33, 0.82); backdrop-filter: blur(6px);
+      border: 1px solid rgba(120, 170, 210, 0.35); border-radius: 10px;
+      padding: 12px; width: 250px; color: #dbeeff; display: grid; gap: 10px;
+    }
+    .viewer-hud h3 { font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; color: #7fc4ff; }
+    .control-row { display: grid; gap: 4px; }
+    .control-row label { font-size: 11px; color: #a9cce6; display: flex; justify-content: space-between; }
+    .control-row input[type="range"] { width: 100%; accent-color: #f0b400; }
+    .toggle-row { display: flex; flex-wrap: wrap; gap: 6px; }
+    .chip {
+      font-size: 11px; font-weight: 600; border: 1px solid rgba(120, 170, 210, 0.4);
+      color: #dbeeff; background: rgba(20, 55, 88, 0.6); border-radius: 999px;
+      padding: 4px 9px; cursor: pointer; user-select: none;
+    }
+    .chip.active { background: #f0b400; color: #23303a; border-color: #f0b400; }
+
+    .viewer-legend {
+      position: absolute; right: 12px; bottom: 12px; z-index: 20;
+      background: rgba(6, 20, 33, 0.82); border: 1px solid rgba(120, 170, 210, 0.35);
+      border-radius: 10px; padding: 10px 12px; color: #cfe6f8; font-size: 11px;
+      line-height: 1.5; max-width: 280px;
+    }
+    .legend-dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; vertical-align: middle; }
+    .viewer-status {
+      position: absolute; left: 12px; bottom: 12px; z-index: 20;
+      background: rgba(6, 20, 33, 0.82); border: 1px solid rgba(120, 170, 210, 0.35);
+      border-radius: 8px; padding: 8px 10px; color: #cfe6f8; font-size: 11px;
+      font-family: Consolas, "Courier New", monospace; max-width: 55%;
+    }
+    .viewer-status.err { border-color: rgba(255,64,85,0.5); color: #ffb3bd; }
+
+    .info { padding: 12px; display: grid; gap: 8px; }
+    .info p { font-size: 13px; color: var(--ink-soft); line-height: 1.55; }
+    .info code {
+      background: #eef6ff; border: 1px solid #cfe3f8; border-radius: 5px;
+      padding: 1px 6px; font-size: 12px; color: #14527d;
+    }
+    .path-controls { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+    .path-controls input {
+      min-width: 260px; border: 1px solid #c4d9ec; border-radius: 7px;
+      padding: 7px 9px; font-size: 12px;
+    }
+    @media (max-width: 760px) {
+      .viewer-hud { width: 200px; }
+      .viewer-status { max-width: 90%; }
+      .path-controls input { min-width: 100%; }
+    }
+
+    /* Clickable photo lightbox */
+    .photo-panel {
+      position: absolute; top: 54px; right: 12px; z-index: 30;
+      width: min(340px, 42vw); max-height: calc(100% - 66px);
+      background: rgba(6, 20, 33, 0.94); border: 1px solid rgba(120, 170, 210, 0.4);
+      border-radius: 12px; overflow: hidden; display: none; flex-direction: column;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.5);
+    }
+    .photo-panel.open { display: flex; }
+    .photo-head {
+      display: flex; align-items: center; justify-content: space-between; gap: 8px;
+      padding: 8px 10px; border-bottom: 1px solid rgba(120,170,210,0.3);
+      color: #dbeeff; font-size: 12px; font-family: Consolas, "Courier New", monospace;
+    }
+    .photo-head .grp { display: flex; gap: 6px; }
+    .photo-btn {
+      width: 26px; height: 26px; border-radius: 6px; cursor: pointer;
+      border: 1px solid rgba(120,170,210,0.4); background: rgba(20,55,88,0.7);
+      color: #dbeeff; font-size: 15px; line-height: 1; display: flex; align-items: center; justify-content: center;
+    }
+    .photo-btn:hover { background: #f0b400; color: #23303a; border-color: #f0b400; }
+    .photo-img-wrap { flex: 1; min-height: 0; background: #05121f; display: flex; align-items: center; justify-content: center; }
+    .photo-img-wrap img { max-width: 100%; max-height: 46vh; object-fit: contain; display: block; }
+    .photo-meta { padding: 8px 10px; color: #9fc2dc; font-size: 11px; border-top: 1px solid rgba(120,170,210,0.3); }
+
+    /* Floating tools (stay usable in fullscreen) */
+    .viewer-tools { position: absolute; top: 12px; right: 12px; z-index: 40; display: flex; gap: 6px; }
+    .tool-btn {
+      background: rgba(6, 20, 33, 0.82); border: 1px solid rgba(120, 170, 210, 0.4);
+      color: #dbeeff; border-radius: 8px; padding: 6px 10px; font-size: 12px; font-weight: 600; cursor: pointer;
+    }
+    .tool-btn:hover { background: #f0b400; color: #23303a; border-color: #f0b400; }
+    /* When the wrap is fullscreen it should fill the screen with square corners */
+    #viewerWrap:fullscreen { border-radius: 0; height: 100vh; }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="navbar">
+      <div class="brand">
+        <img src="images/logo_lite.png" alt="CAT Lite logo">
+        <span>Photogrammetry Multi-View</span>
+      </div>
+      <div class="nav-actions">
+        <a class="btn btn-secondary" href="index.html">Annotation Tool</a>
+        <a class="btn btn-secondary" href="cog_explainer.html">COG Explainer</a>
+        <a class="btn btn-secondary" href="https://github.com/MichaelAkridge-NOAA/cat" target="_blank">Full CAT Repo</a>
+      </div>
+    </nav>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-title" id="cardTitle">Full-resolution point cloud + source cameras</div>
+        <div class="path-controls">
+          <span class="chip" id="siteRandomBtn" title="Random reef site demo (AGR-455)">Random Site</span>
+          <span class="chip" id="siteFixedBtn" title="Fixed monitoring site demo (OCC-TUT-017)">Fixed Site</span>
+          <button class="btn btn-secondary" id="resetViewBtn">Reset View</button>
+          <button class="btn btn-primary" id="loadThumbsBtn">Load Photo Thumbnails</button>
+        </div>
+      </div>
+      <div class="viewer-wrap" id="viewerWrap">
+        <div id="potree_render_area"></div>
+        <canvas id="overlayCanvas"></canvas>
+
+        <div class="viewer-tools">
+          <button class="tool-btn" id="hudToggleBtn" title="Toggle controls menu (M)">Hide Menu (M)</button>
+          <button class="tool-btn" id="fsBtn" title="Toggle full screen">Full Screen</button>
+        </div>
+
+        <div class="viewer-hud" id="viewerHud">
+          <h3>Scene Controls</h3>
+          <div class="control-row">
+            <label>Explode cameras <span id="explodeVal">0.25</span></label>
+            <input type="range" id="explodeSlider" min="0" max="100" value="25">
+          </div>
+          <div class="control-row">
+            <label>Cameras shown <span id="camCountVal">150</span></label>
+            <input type="range" id="camCountSlider" min="10" max="563" value="150">
+          </div>
+          <div class="control-row">
+            <label>Point budget <span id="budgetVal">3.0M</span></label>
+            <input type="range" id="budgetSlider" min="5" max="80" value="30">
+          </div>
+          <div class="control-row">
+            <label>Point size <span id="sizeVal">1.0</span></label>
+            <input type="range" id="sizeSlider" min="1" max="30" value="10">
+          </div>
+          <div class="control-row">
+            <label>Thumbnail scale <span id="thumbScaleVal">1.0</span></label>
+            <input type="range" id="thumbScaleSlider" min="20" max="220" value="100">
+          </div>
+          <div class="toggle-row">
+            <span class="chip active" id="chipEDL">EDL</span>
+            <span class="chip active" id="chipCameras">Cameras</span>
+            <span class="chip active" id="chipRays">Rays</span>
+            <span class="chip active" id="chipOrbit">Auto-orbit</span>
+            <span class="chip" id="chipDome">Dome</span>
+            <span class="chip" id="chipReveal" title="Reveal along image track (R)">Reveal Track (R)</span>
+            <span class="chip" id="chipTour">Fly Tour</span>
+          </div>
+        </div>
+
+        <div class="viewer-legend">
+          <div><span class="legend-dot" style="background:#7fd4ff;"></span>Full-res Potree point cloud (LOD streamed)</div>
+          <div><span class="legend-dot" style="background:#f0b400;"></span>Real source photo cameras (multi-view)</div>
+          <div style="margin-top:6px; color:#9fc2dc;">Drag to orbit &bull; scroll to zoom &bull; Explode fans the cameras above the reef.</div>
+          <div style="margin-top:4px; color:#ffd777;">Click a camera to open its photo and fly into its viewpoint.</div>
+        </div>
+
+        <div class="photo-panel" id="photoPanel">
+          <div class="photo-head">
+            <span id="photoTitle">source photo</span>
+            <div class="grp">
+              <button class="photo-btn" id="photoPrev" title="Previous camera">&lsaquo;</button>
+              <button class="photo-btn" id="photoNext" title="Next camera">&rsaquo;</button>
+              <button class="photo-btn" id="photoClose" title="Close">&times;</button>
+            </div>
+          </div>
+          <div class="photo-img-wrap"><img id="photoImg" alt="source photo"></div>
+          <div class="photo-meta" id="photoMeta"></div>
+        </div>
+
+        <div class="viewer-status" id="viewerStatus">Loading Potree engine...</div>
+      </div>
+
+      <div class="info">
+        <div class="section-title">Data Sources</div>
+        <p>
+          Streams the full <strong>144M-point</strong> Potree octree with true level-of-detail, and overlays the
+          real COLMAP source-photo cameras as an exploded multi-view. The overlay is camera-synced to Potree each frame.
+        </p>
+        <div class="path-controls">
+          <input id="cloudInput" aria-label="Potree cloud directory" autocomplete="off">
+          <input id="camerasInput" aria-label="Cameras JSON" autocomplete="off">
+          <button class="btn btn-primary" id="reloadBtn">Reload</button>
+        </div>
+        <p style="font-size:12px; color:#5e7c98;">
+          Defaults to the public GCS bundle. The Potree engine is vendored locally at
+          <code>libs/potree2</code>, so cat-web-lite runs standalone. Override any path with
+          <code>?potreeBase=URL&amp;cloud=URL&amp;cameras=URL&amp;images=URL&amp;thumbs=URL&amp;metadata=URL</code>
+          (e.g. point back at the local <code>bundle_v2/</code> folder for offline dev).
+        </p>
+      </div>
+    </section>
+  </div>
+
+  <!-- Standalone THREE for the transparent overlay only (Potree bundles its own THREE privately). -->
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+  <script>
+    const params = new URLSearchParams(location.search);
+    // Two demo bundles on the public GCS mirror; local bundle_v2/ remains available for offline dev via query overrides.
+    const SITE_PRESETS = {
+      random: {
+        label: 'Random Site (AGR-455)',
+        base: 'https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2'
+      },
+      fixed: {
+        label: 'Fixed Site (OCC-TUT-017)',
+        base: 'https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/OCC-TUT-017/bundle_v2'
+      }
+    };
+    const SITE_KEY = SITE_PRESETS[params.get('site')] ? params.get('site') : 'random';
+    const BUNDLE_BASE = SITE_PRESETS[SITE_KEY].base;
+    const CFG = {
+      potreeBase: params.get('potreeBase') || 'libs/potree2/page_template/libs',
+      cloudDir: params.get('cloud') || `${BUNDLE_BASE}/potree`,
+      camerasJson: params.get('cameras') || `${BUNDLE_BASE}/cameras_sample.json`,
+      imageDir: params.get('images') || `${BUNDLE_BASE}/colmap/images`,
+      thumbDir: params.get('thumbs') || `${BUNDLE_BASE}/thumbnails`,
+      metadataJson: params.get('metadata') || `${BUNDLE_BASE}/metadata_summary.json`,
+      pointBudget: 3000000,
+      ambientCameras: 150,
+      previewThumbs: 10,
+      thumbMaxPx: 256,
+      defaultExplode: 0.25
+    };
+
+    const OVERLAY_THREE = window.THREE; // CDN THREE, reserved for the overlay scene
+    const statusEl = document.getElementById('viewerStatus');
+    function setStatus(msg, isErr) {
+      statusEl.textContent = msg;
+      statusEl.className = 'viewer-status' + (isErr ? ' err' : '');
+    }
+
+    // ---- Potree engine loader (from your cat-scan potree2 build) ----
+    function loadCss(href) {
+      return new Promise(resolve => {
+        const l = document.createElement('link');
+        l.rel = 'stylesheet'; l.href = href; l.onload = resolve; l.onerror = resolve;
+        document.head.appendChild(l);
+      });
+    }
+    function loadScript(src) {
+      return new Promise((resolve, reject) => {
+        const s = document.createElement('script');
+        s.src = src; s.onload = resolve; s.onerror = () => reject(new Error(`Failed to load ${src}`));
+        document.head.appendChild(s);
+      });
+    }
+    async function loadPotreeEngine() {
+      const b = CFG.potreeBase.replace(/\/$/, '');
+      await loadCss(`${b}/potree/potree.css`);
+      await loadCss(`${b}/jquery-ui/jquery-ui.min.css`);
+      const scripts = [
+        'jquery/jquery-3.1.1.min.js',
+        'spectrum/spectrum.js',
+        'jquery-ui/jquery-ui.min.js',
+        'other/BinaryHeap.js',
+        'tween/tween.min.js',
+        'd3/d3.js',
+        'proj4/proj4.js',
+        'i18next/i18next.js',
+        'jstree/jstree.js',
+        'potree/potree.js',
+        'plasio/js/laslaz.js'
+      ];
+      for (const rel of scripts) {
+        await loadScript(`${b}/${rel}`);
+      }
+    }
+
+    // ---- Overlay scene (exploded cameras) ----
+    const T = OVERLAY_THREE;
+    const overlayCanvas = document.getElementById('overlayCanvas');
+    const overlayRenderer = new T.WebGLRenderer({ canvas: overlayCanvas, alpha: true, antialias: true });
+    overlayRenderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    const overlayScene = new T.Scene();
+    const overlayCam = new T.PerspectiveCamera(60, 1, 0.01, 100000);
+    overlayCam.matrixAutoUpdate = false;
+
+    let viewer = null;
+    let pointcloud = null;
+    let cameraGroup = null;
+    let rayGroup = null;
+    let cameraEntries = [];
+    let sceneCentroid = null;
+    let sceneSize = 20;
+    let upWorld = new T.Vector3(0, 0, 1);
+    let focusMarker = null;
+    let autoOrbitOn = true;
+    let lastInteraction = performance.now();
+    let alignDelta = new T.Vector3();
+    let camIntrinsics = null;
+    let pickedMeasure = null;
+    let navList = [];
+    let explodeMode = 'lift';
+    let ambientCount = 150;
+    let revealTimer = null;
+    let revealBox = null;
+    let revealIdx = 0;
+
+    function resizeOverlay() {
+      const wrap = document.getElementById('viewerWrap');
+      const w = wrap.clientWidth, h = wrap.clientHeight;
+      overlayRenderer.setSize(w, h, false);
+    }
+    window.addEventListener('resize', resizeOverlay);
+    document.addEventListener('fullscreenchange', () => {
+      setTimeout(resizeOverlay, 60);
+      const b = document.getElementById('fsBtn');
+      if (b) b.textContent = document.fullscreenElement ? 'Exit Full Screen' : 'Full Screen';
+    });
+
+    function overlayLoop() {
+      requestAnimationFrame(overlayLoop);
+      if (viewer && viewer.scene) {
+        const src = viewer.scene.getActiveCamera ? viewer.scene.getActiveCamera() : null;
+        if (src) {
+          src.updateMatrixWorld();
+          overlayCam.matrixWorld.fromArray(src.matrixWorld.elements);
+          overlayCam.projectionMatrix.fromArray(src.projectionMatrix.elements);
+          overlayCam.projectionMatrixInverse.copy(overlayCam.projectionMatrix).invert();
+        }
+        if (autoOrbitOn && sceneCentroid && !tourTimer && (performance.now() - lastInteraction) > 3500) {
+          autoOrbitStep(0.0022);
+        }
+      }
+      overlayRenderer.render(overlayScene, overlayCam);
+    }
+
+    // ---- Exploded cameras from real COLMAP poses ----
+    function cameraCenterCloud(cam) {
+      const q = new T.Quaternion(cam.qx, cam.qy, cam.qz, cam.qw);
+      const R = new T.Matrix4().makeRotationFromQuaternion(q);
+      const Rt = R.clone().transpose();
+      const t = new T.Vector3(cam.tx, cam.ty, cam.tz);
+      return t.applyMatrix4(Rt).multiplyScalar(-1);
+    }
+    function buildFrustum(size, depth) {
+      const w = size * 0.5, h = size * 0.5 * (2 / 3);
+      const apex = new T.Vector3(0, 0, 0);
+      const c1 = new T.Vector3(-w, -h, -depth), c2 = new T.Vector3(w, -h, -depth);
+      const c3 = new T.Vector3(w, h, -depth), c4 = new T.Vector3(-w, h, -depth);
+      const pts = [apex, c1, apex, c2, apex, c3, apex, c4, c1, c2, c2, c3, c3, c4, c4, c1];
+      const g = new T.BufferGeometry().setFromPoints(pts);
+      const m = new T.LineBasicMaterial({ color: 0xffc233, transparent: true, opacity: 0.9 });
+      return new T.LineSegments(g, m);
+    }
+    function buildPlane(size, depth) {
+      const w = size * 0.5, h = size * 0.5 * (2 / 3);
+      const geo = new T.PlaneGeometry(w * 2, h * 2);
+      const mat = new T.MeshBasicMaterial({ color: 0x2f9fd0, transparent: true, opacity: 0.7, side: T.DoubleSide });
+      const mesh = new T.Mesh(geo, mat);
+      mesh.position.set(0, 0, -depth);
+      return mesh;
+    }
+
+    function readWorldMatrix() {
+      // Numeric copy of Potree pointcloud world matrix into overlay THREE.
+      pointcloud.updateMatrixWorld(true);
+      return new T.Matrix4().fromArray(pointcloud.matrixWorld.elements);
+    }
+    function transformedAABB(bmin, bmax, m) {
+      const pts = [];
+      for (const x of [bmin.x, bmax.x])
+        for (const y of [bmin.y, bmax.y])
+          for (const z of [bmin.z, bmax.z])
+            pts.push(new T.Vector3(x, y, z).applyMatrix4(m));
+      const min = pts[0].clone(), max = pts[0].clone();
+      pts.forEach(p => { min.min(p); max.max(p); });
+      return { min, max };
+    }
+    function readWorldBox(pcMatrix) {
+      // Tight bbox = actual data extent (not the padded octree cube), so it matches the cameras.
+      const g = pointcloud.pcoGeometry || {};
+      const tb = g.tightBoundingBox || pointcloud.boundingBox;
+      const bmin = new T.Vector3(tb.min.x, tb.min.y, tb.min.z);
+      const bmax = new T.Vector3(tb.max.x, tb.max.y, tb.max.z);
+      return transformedAABB(bmin, bmax, pcMatrix);
+    }
+
+    async function buildCameras() {
+      let data;
+      try {
+        data = await fetch(document.getElementById('camerasInput').value.trim() || CFG.camerasJson).then(r => {
+          if (!r.ok) throw new Error(`cameras ${r.status}`);
+          return r.json();
+        });
+      } catch (err) {
+        setStatus(`Camera poses failed: ${err.message}`, true);
+        return;
+      }
+
+      const pcMatrix = readWorldMatrix();
+      const box = readWorldBox(pcMatrix);
+      sceneCentroid = box.min.clone().add(box.max).multiplyScalar(0.5);
+      sceneSize = Math.max(box.min.distanceTo(box.max), 5);
+      upWorld = new T.Vector3(0, 0, 1);
+
+      // Potree offset-subtracts the cloud at load, so align the COLMAP camera frame to
+      // Potree's rendered world by matching tight-bbox centers (a pure translation).
+      alignDelta = new T.Vector3();
+      try {
+        const dir = (document.getElementById('cloudInput').value.trim() || CFG.cloudDir).replace(/\/$/, '');
+        const meta = await fetch(`${dir}/cloud.js`).then(r => r.json());
+        const tb = meta.tightBoundingBox || meta.boundingBox;
+        const origCenter = new T.Vector3((tb.lx + tb.ux) / 2, (tb.ly + tb.uy) / 2, (tb.lz + tb.uz) / 2);
+        alignDelta = sceneCentroid.clone().sub(origCenter);
+      } catch (e) { /* identity fallback */ }
+
+      // Camera intrinsics (shared model) for projecting a picked point into each image.
+      try {
+        const meta = await fetch(CFG.metadataJson).then(r => r.json());
+        const p = (meta.camera && meta.camera.params) || [];
+        camIntrinsics = { fx: p[0], fy: p[1], cx: p[2], cy: p[3], W: (meta.camera && meta.camera.width) || 6000, H: (meta.camera && meta.camera.height) || 4000 };
+      } catch (e) { camIntrinsics = null; }
+
+      if (cameraGroup) overlayScene.remove(cameraGroup);
+      if (rayGroup) overlayScene.remove(rayGroup);
+      cameraGroup = new T.Group();
+      rayGroup = new T.Group();
+      overlayScene.add(cameraGroup);
+      overlayScene.add(rayGroup);
+      cameraEntries = [];
+
+      const frustumSize = sceneSize * 0.1;
+      const frustumDepth = sceneSize * 0.08;
+      const cams = data.cameras || [];
+
+      cams.forEach(cam => {
+        const cWorld = cameraCenterCloud(cam).add(alignDelta);
+        const g = new T.Group();
+        g.position.copy(cWorld);
+        g.lookAt(sceneCentroid);
+        const frustum = buildFrustum(frustumSize, frustumDepth);
+        g.add(frustum);
+        const plane = buildPlane(frustumSize, frustumDepth);
+        g.add(plane);
+        cameraGroup.add(g);
+
+        const rayGeo = new T.BufferGeometry().setFromPoints([cWorld.clone(), sceneCentroid.clone()]);
+        const rayMat = new T.LineBasicMaterial({ color: 0x2f7fb5, transparent: true, opacity: 0.22 });
+        const ray = new T.Line(rayGeo, rayMat);
+        rayGroup.add(ray);
+
+        // Store world->camera rotation R and translation t for point-in-image projection.
+        const q = new T.Quaternion(cam.qx, cam.qy, cam.qz, cam.qw);
+        const Rmat = new T.Matrix4().makeRotationFromQuaternion(q);
+        const tvec = new T.Vector3(cam.tx, cam.ty, cam.tz);
+        cameraEntries.push({ base: cWorld.clone(), group: g, plane, frustum, name: cam.name, ray, Rmat, t: tvec });
+      });
+
+      applyExplode(CFG.defaultExplode);
+      ambientCount = Math.min(CFG.ambientCameras, cameraEntries.length);
+      const camSlider = document.getElementById('camCountSlider');
+      if (camSlider) { camSlider.max = cameraEntries.length; camSlider.value = ambientCount; }
+      const camValEl = document.getElementById('camCountVal');
+      if (camValEl) camValEl.textContent = ambientCount;
+      applyAmbientVisibility();
+      applyExplode(CFG.defaultExplode);
+      setStatus(`Loaded ${cams.length} of ${data.totalImages} cameras. Showing ${ambientCount}. Click a point for its observers, or Reveal Track.`);
+    }
+
+    function applyExplode(amount) {
+      if (!sceneCentroid) return;
+      if (explodeMode === 'dome') { applyDome(amount); return; }
+      const lift = sceneSize * 0.9 * amount;
+      const spread = 1 + amount * 1.6;
+      cameraEntries.forEach(entry => {
+        const from = entry.base.clone().sub(sceneCentroid);
+        const pos = sceneCentroid.clone()
+          .add(from.multiplyScalar(spread))
+          .add(upWorld.clone().multiplyScalar(lift));
+        entry.group.position.copy(pos);
+        entry.group.lookAt(sceneCentroid);
+        entry.ray.geometry.setFromPoints([pos.clone(), sceneCentroid.clone()]);
+        entry.ray.geometry.attributes.position.needsUpdate = true;
+      });
+    }
+
+    // Alternate look: redistribute the visible cameras onto a hemispherical dome (Fibonacci) facing the focus.
+    function applyDome(amount) {
+      const visible = cameraEntries.filter(e => e.group.visible);
+      const N = Math.max(1, visible.length);
+      const golden = Math.PI * (3 - Math.sqrt(5));
+      const radius = sceneSize * (0.5 + amount * 1.3);
+      visible.forEach((entry, i) => {
+        const yy = 1 - (i / Math.max(1, N - 1)) * 0.98;
+        const rr = Math.sqrt(Math.max(0, 1 - yy * yy));
+        const th = golden * i;
+        const pos = new T.Vector3(
+          sceneCentroid.x + Math.cos(th) * rr * radius,
+          sceneCentroid.y + Math.sin(th) * rr * radius,
+          sceneCentroid.z + yy * radius
+        );
+        entry.group.position.copy(pos);
+        entry.group.lookAt(sceneCentroid);
+        entry.ray.geometry.setFromPoints([pos.clone(), sceneCentroid.clone()]);
+        entry.ray.geometry.attributes.position.needsUpdate = true;
+      });
+    }
+
+    // Orbit the Potree camera around the focus point (Z-up), for idle attract mode.
+    function autoOrbitStep(delta) {
+      const v = viewer.scene.view;
+      const cx = sceneCentroid.x, cy = sceneCentroid.y, cz = sceneCentroid.z;
+      const dx = v.position.x - cx, dy = v.position.y - cy;
+      const cos = Math.cos(delta), sin = Math.sin(delta);
+      v.position.set(cx + dx * cos - dy * sin, cy + dx * sin + dy * cos, v.position.z);
+      v.lookAt(cx, cy, cz);
+    }
+
+    // Native cat-scan-style dot: a Potree.Measure marker in the real scene (depth-occluded).
+    function setPickedDot(p) {
+      if (!viewer || typeof Potree === 'undefined' || !Potree.Measure) return;
+      const V3 = viewer.scene.view.position.constructor;
+      if (!pickedMeasure) {
+        pickedMeasure = new Potree.Measure();
+        pickedMeasure.name = 'Picked Point';
+        pickedMeasure.showDistances = false;
+        pickedMeasure.showAngles = false;
+        pickedMeasure.showArea = false;
+        pickedMeasure.showCoordinates = false;
+        pickedMeasure.showHeight = false;
+        pickedMeasure.showCircle = false;
+        viewer.scene.addMeasurement(pickedMeasure);
+      }
+      if (!pickedMeasure.points || pickedMeasure.points.length === 0) {
+        pickedMeasure.addMarker(new V3(p.x, p.y, p.z));
+      } else if (typeof pickedMeasure.setPosition === 'function') {
+        pickedMeasure.setPosition(0, new V3(p.x, p.y, p.z));
+      } else {
+        pickedMeasure.points[0].position.set(p.x, p.y, p.z);
+        if (typeof pickedMeasure.update === 'function') pickedMeasure.update();
+      }
+      const sphere = pickedMeasure.spheres && pickedMeasure.spheres[0];
+      if (sphere && sphere.material && sphere.material.color) {
+        sphere.material.color.setHex(0x00cfc0);
+        sphere.material.opacity = 0.9;
+        sphere.material.transparent = true;
+      }
+    }
+
+    // Which cameras observed the point: project it into each image with the real intrinsics/pose.
+    function observersOf(pWorld) {
+      if (!camIntrinsics) return null;
+      const Xw = pWorld.clone().sub(alignDelta); // back to COLMAP frame
+      const { fx, fy, cx, cy, W, H } = camIntrinsics;
+      const obs = [];
+      cameraEntries.forEach(entry => {
+        const Xc = Xw.clone().applyMatrix4(entry.Rmat).add(entry.t); // Xc = R*Xw + t
+        if (Xc.z <= 0) return;
+        const u = fx * (Xc.x / Xc.z) + cx;
+        const v = fy * (Xc.y / Xc.z) + cy;
+        if (u >= 0 && u <= W && v >= 0 && v <= H) obs.push(entry);
+      });
+      return obs;
+    }
+
+    function setObserverFilter(obs) {
+      const set = obs ? new Set(obs) : null;
+      cameraEntries.forEach(entry => {
+        const on = !set || set.has(entry);
+        entry.group.visible = on;
+        entry.ray.visible = on;
+      });
+    }
+
+    // Ambient display density: show an evenly-spread subset of the loaded cameras.
+    function applyAmbientVisibility() {
+      const total = cameraEntries.length;
+      const n = Math.max(1, Math.min(ambientCount, total));
+      const keep = new Set();
+      const stepF = total / n;
+      for (let k = 0; k < n; k++) keep.add(Math.min(total - 1, Math.floor(k * stepF)));
+      cameraEntries.forEach((e, i) => { const on = keep.has(i); e.group.visible = on; e.ray.visible = on; });
+      navList = cameraEntries.filter(e => e.group.visible);
+    }
+
+    // ---- Frame-by-frame reveal of the cloud along the image capture track (clip volume) ----
+    function ensureRevealBox() {
+      if (revealBox || typeof Potree === 'undefined' || !Potree.BoxVolume) return;
+      revealBox = new Potree.BoxVolume();
+      revealBox.name = 'reveal';
+      revealBox.visible = false;
+      viewer.scene.addVolume(revealBox);
+    }
+    function setRevealRange(count) {
+      if (!revealBox) return;
+      const min = new T.Vector3(1e9, 1e9, 1e9), max = new T.Vector3(-1e9, -1e9, -1e9);
+      for (let i = 0; i < count; i++) { min.min(cameraEntries[i].base); max.max(cameraEntries[i].base); }
+      const cx = (min.x + max.x) / 2, cy = (min.y + max.y) / 2;
+      const sx = Math.max(max.x - min.x, sceneSize * 0.08) + sceneSize * 0.12;
+      const sy = Math.max(max.y - min.y, sceneSize * 0.08) + sceneSize * 0.12;
+      revealBox.position.set(cx, cy, sceneCentroid.z);
+      revealBox.scale.set(sx, sy, sceneSize * 2.2);
+      revealBox.updateMatrixWorld(true);
+    }
+    function startReveal() {
+      if (!viewer || cameraEntries.length === 0) return;
+      ensureRevealBox();
+      if (!revealBox) { setStatus('Clip volumes unavailable in this Potree build.', true); return; }
+      revealBox.clip = true;
+      viewer.setClipTask(Potree.ClipTask.SHOW_INSIDE);
+      cameraEntries.forEach(e => { e.group.visible = false; e.ray.visible = false; });
+      navList = cameraEntries;
+      revealIdx = 1;
+      setRevealRange(1);
+      viewer.fitToScreen(0.85);
+      const total = cameraEntries.length;
+      const adv = Math.max(1, Math.round(total / 80));
+      revealTimer = setInterval(() => {
+        revealIdx = Math.min(total, revealIdx + adv);
+        setRevealRange(revealIdx);
+        for (let i = 0; i < revealIdx; i++) { if (i % 4 === 0) { cameraEntries[i].group.visible = true; cameraEntries[i].ray.visible = true; } }
+        const cur = cameraEntries[Math.min(revealIdx - 1, total - 1)];
+        highlightEntry(cur); showPhoto(cur);
+        setStatus(`Revealing along image track: ${revealIdx} / ${total}`);
+        if (revealIdx >= total) stopReveal(true);
+      }, 130);
+    }
+    function stopReveal(finished) {
+      if (revealTimer) { clearInterval(revealTimer); revealTimer = null; }
+      if (viewer) viewer.setClipTask(Potree.ClipTask.NONE);
+      if (revealBox) revealBox.clip = false;
+      applyAmbientVisibility();
+      applyExplode(Number(document.getElementById('explodeSlider').value) / 100);
+      const chip = document.getElementById('chipReveal');
+      if (chip) chip.classList.remove('active');
+      if (finished) setStatus('Reveal complete — full cloud shown.');
+    }
+
+    // Potree point pick (same as cat-scan): click any cloud point to re-center the explode.
+    function pickPoint(clientX, clientY) {
+      if (!viewer || !viewer.scene?.pointclouds?.length) return null;
+      const rect = viewer.renderer.domElement.getBoundingClientRect();
+      const mouse = { x: clientX - rect.left, y: clientY - rect.top };
+      const cam = viewer.scene.getActiveCamera();
+      try {
+        const hit = Potree.Utils.getMousePointCloudIntersection(mouse, cam, viewer, viewer.scene.pointclouds, { pickClipped: true });
+        return hit && hit.location ? hit.location : null;
+      } catch (_) { return null; }
+    }
+    function reanchorExplode(loc) {
+      sceneCentroid = new T.Vector3(loc.x, loc.y, loc.z);
+      setPickedDot(loc);
+      const a = Number(document.getElementById('explodeSlider').value) / 100;
+      applyExplode(a);
+      const obs = observersOf(sceneCentroid);
+      if (obs && obs.length) {
+        setObserverFilter(obs);
+        navList = obs;
+        selectEntry(obs[0], true);
+        setStatus(`${obs.length} of ${cameraEntries.length} cameras observed this point.`);
+      } else {
+        setObserverFilter(null);
+        navList = cameraEntries.slice();
+        setStatus(`Re-centered on picked point. (Observer projection needs metadata_summary.json.)`);
+      }
+    }
+
+    // ---- Photo thumbnails (pre-generated by build_thumbnails.py; full-res image as fallback) ----
+    function loadImageAsTexture(url) {
+      return new Promise(resolve => {
+        const img = new Image();
+        img.onload = () => {
+          const tex = new T.Texture(img);
+          tex.needsUpdate = true;
+          resolve(tex);
+        };
+        img.onerror = () => resolve(null);
+        img.src = url;
+      });
+    }
+    async function loadThumbTexture(thumbUrl, fallbackUrl) {
+      const tex = await loadImageAsTexture(thumbUrl);
+      if (tex) return tex;
+      return loadImageAsTexture(fallbackUrl);
+    }
+    async function loadThumbnails(maxCount) {
+      if (cameraEntries.length === 0) return;
+      const count = Math.min(maxCount || cameraEntries.length, cameraEntries.length);
+      const step = Math.max(1, Math.floor(cameraEntries.length / count));
+      const thumbDir = (params.get('thumbs') || CFG.thumbDir).replace(/\/$/, '');
+      const imgDir = (params.get('images') || CFG.imageDir).replace(/\/$/, '');
+      let done = 0;
+      for (let i = 0; i < cameraEntries.length; i += step) {
+        const entry = cameraEntries[i];
+        if (entry.plane.material.map) continue;
+        const thumbName = entry.name.replace(/\.[^./]+$/, '.JPG'); // build_thumbnails.py always writes uppercase .JPG
+        const tex = await loadThumbTexture(`${thumbDir}/${thumbName}`, `${imgDir}/${entry.name}`);
+        if (tex) {
+          entry.plane.material.map = tex;
+          entry.plane.material.color.set(0xffffff);
+          entry.plane.material.opacity = 0.98;
+          entry.plane.material.needsUpdate = true;
+          done++;
+          setStatus(`Mapped ${done} source photos onto cameras...`);
+        }
+      }
+      setStatus(`Mapped ${done} real source photos onto camera frustums.`);
+    }
+
+    // ---- Potree init + point cloud ----
+    function initPotree() {
+      viewer = new Potree.Viewer(document.getElementById('potree_render_area'));
+      viewer.setEDLEnabled(true);
+      viewer.setFOV(60);
+      viewer.setPointBudget(CFG.pointBudget);
+      viewer.setBackground('gradient');
+    }
+
+    function loadCloud() {
+      let dir = (document.getElementById('cloudInput').value.trim() || CFG.cloudDir).replace(/\/$/, '');
+      dir = dir.replace(/\/cloud\.js$/i, ''); // guard against a stale input value that already includes the filename
+      const url = `${dir}/cloud.js`;
+      setStatus(`Loading point cloud: ${url}`);
+
+      if (viewer.scene?.pointclouds?.length) {
+        viewer.scene.pointclouds.forEach(pc => viewer.scene.scenePointCloud.remove(pc));
+        viewer.scene.pointclouds.length = 0;
+      }
+
+      Potree.loadPointCloud(url, 'reef', e => {
+        if (e.type === 'loading_failed' || !e.pointcloud) {
+          setStatus(`Point cloud load failed for ${url}`, true);
+          return;
+        }
+        pointcloud = e.pointcloud;
+        const mat = pointcloud.material;
+        applyRgbColoring(mat, pointcloud);
+        if (Potree.PointShape) mat.shape = Potree.PointShape.CIRCLE;
+        if (Potree.PointSizeType) mat.pointSizeType = Potree.PointSizeType.ADAPTIVE;
+        mat.size = 1.0;
+        viewer.scene.addPointCloud(pointcloud);
+        viewer.fitToScreen(0.6);
+        buildCameras();
+        setTimeout(() => loadThumbnails(CFG.previewThumbs), 400);
+      });
+    }
+
+    // Potree 1.8 colors via activeAttributeName; PointColorType enum may be absent.
+    function applyRgbColoring(mat, pc) {
+      const attrs = (pc.pcoGeometry?.pointAttributes?.attributes ?? [])
+        .map(a => (a.name || '').toLowerCase());
+      if (attrs.includes('rgba')) mat.activeAttributeName = 'rgba';
+      else if (attrs.includes('rgb')) mat.activeAttributeName = 'rgb';
+      else if (attrs.includes('color')) mat.activeAttributeName = 'color';
+      if (Potree.PointColorType) {
+        for (const k of ['RGBA', 'RGB', 'COLOR']) {
+          if (Potree.PointColorType[k] !== undefined) { mat.pointColorType = Potree.PointColorType[k]; break; }
+        }
+      }
+    }
+
+    // ---- Click-to-inspect: pick a camera, open its photo, fly into its view ----
+    const raycaster = new T.Raycaster();
+    let selectedEntry = null;
+
+    function highlightEntry(entry) {
+      if (selectedEntry && selectedEntry.frustum) {
+        selectedEntry.frustum.material.color.set(0xffc233);
+        selectedEntry.frustum.material.opacity = 0.9;
+      }
+      selectedEntry = entry;
+      if (entry && entry.frustum) {
+        entry.frustum.material.color.set(0xffffff);
+        entry.frustum.material.opacity = 1.0;
+      }
+    }
+
+    function flyToEntry(entry) {
+      if (!viewer || !entry) return;
+      const p = entry.group.position;
+      const c = sceneCentroid;
+      try {
+        if (typeof viewer.scene.view.setView === 'function') {
+          viewer.scene.view.setView([p.x, p.y, p.z], [c.x, c.y, c.z], 700);
+        } else {
+          viewer.scene.view.position.set(p.x, p.y, p.z);
+          viewer.scene.view.lookAt(c.x, c.y, c.z);
+        }
+      } catch (_) {
+        viewer.scene.view.position.set(p.x, p.y, p.z);
+        viewer.scene.view.lookAt(c.x, c.y, c.z);
+      }
+    }
+
+    function showPhoto(entry) {
+      const imgDir = (params.get('images') || CFG.imageDir).replace(/\/$/, '');
+      document.getElementById('photoTitle').textContent = entry.name;
+      document.getElementById('photoImg').src = `${imgDir}/${entry.name}`;
+      const list = (navList && navList.length) ? navList : cameraEntries;
+      const idx = list.indexOf(entry) + 1;
+      const label = (list === cameraEntries) ? 'Camera' : 'Observer';
+      document.getElementById('photoMeta').textContent = `${label} ${idx} of ${list.length}`;
+      document.getElementById('photoPanel').classList.add('open');
+    }
+
+    function selectEntry(entry, fly) {
+      if (!entry) return;
+      highlightEntry(entry);
+      showPhoto(entry);
+      if (fly !== false) flyToEntry(entry);
+    }
+
+    function stepPhoto(delta) {
+      const list = (navList && navList.length) ? navList : cameraEntries;
+      if (!selectedEntry || list.length === 0) return;
+      let i = list.indexOf(selectedEntry);
+      if (i < 0) i = 0;
+      i = (i + delta + list.length) % list.length;
+      selectEntry(list[i], true);
+    }
+
+    let tourTimer = null;
+    function setTour(on) {
+      if (on) {
+        let i = 0;
+        const first = (navList && navList.length) ? navList[0] : cameraEntries[0];
+        selectEntry(first, true);
+        tourTimer = setInterval(() => {
+          const l = (navList && navList.length) ? navList : cameraEntries;
+          if (l.length === 0) return;
+          i = (i + 1) % l.length;
+          selectEntry(l[i], true);
+        }, 2600);
+      } else if (tourTimer) {
+        clearInterval(tourTimer);
+        tourTimer = null;
+      }
+    }
+
+    function pickAt(clientX, clientY) {
+      if (cameraEntries.length === 0) return null;
+      const rect = overlayCanvas.getBoundingClientRect();
+      const ndc = new T.Vector2(
+        ((clientX - rect.left) / rect.width) * 2 - 1,
+        -((clientY - rect.top) / rect.height) * 2 + 1
+      );
+      raycaster.setFromCamera(ndc, overlayCam);
+      const planes = cameraEntries.map(e => e.plane);
+      const hits = raycaster.intersectObjects(planes, false);
+      if (!hits.length) return null;
+      return cameraEntries.find(e => e.plane === hits[0].object) || null;
+    }
+
+    function setupPicking() {
+      const area = document.getElementById('potree_render_area');
+      let down = null;
+      const mark = () => { lastInteraction = performance.now(); };
+      area.addEventListener('pointerdown', e => { down = { x: e.clientX, y: e.clientY, t: performance.now() }; mark(); });
+      area.addEventListener('wheel', mark, { passive: true });
+      window.addEventListener('keydown', mark);
+      area.addEventListener('pointerup', e => {
+        mark();
+        if (!down) return;
+        const moved = Math.hypot(e.clientX - down.x, e.clientY - down.y);
+        const dt = performance.now() - down.t;
+        down = null;
+        if (moved < 5 && dt < 400) {
+          const entry = pickAt(e.clientX, e.clientY);
+          if (entry) { selectEntry(entry, true); return; }
+          const loc = pickPoint(e.clientX, e.clientY);
+          if (loc) reanchorExplode(loc);
+        }
+      });
+      area.addEventListener('pointermove', e => {
+        mark();
+        if (cameraEntries.length === 0) return;
+        area.style.cursor = pickAt(e.clientX, e.clientY) ? 'pointer' : 'crosshair';
+      });
+
+      document.getElementById('photoClose').addEventListener('click', () => {
+        document.getElementById('photoPanel').classList.remove('open');
+        if (!revealTimer) {
+          applyAmbientVisibility();
+          applyExplode(Number(document.getElementById('explodeSlider').value) / 100);
+        }
+      });
+      document.getElementById('photoPrev').addEventListener('click', () => stepPhoto(-1));
+      document.getElementById('photoNext').addEventListener('click', () => stepPhoto(1));
+    }
+
+    // ---- UI ----
+    function bindUi() {
+      const explode = document.getElementById('explodeSlider');
+      const explodeVal = document.getElementById('explodeVal');
+      explode.addEventListener('input', () => {
+        const a = explode.value / 100;
+        explodeVal.textContent = a.toFixed(2);
+        applyExplode(a);
+      });
+
+      const camCount = document.getElementById('camCountSlider');
+      const camCountVal = document.getElementById('camCountVal');
+      camCount.addEventListener('input', () => {
+        ambientCount = Number(camCount.value);
+        camCountVal.textContent = ambientCount;
+        applyAmbientVisibility();
+        applyExplode(Number(explode.value) / 100);
+      });
+
+      const budget = document.getElementById('budgetSlider');
+      const budgetVal = document.getElementById('budgetVal');
+      budget.addEventListener('input', () => {
+        const b = budget.value * 100000;
+        budgetVal.textContent = (b / 1000000).toFixed(1) + 'M';
+        if (viewer) viewer.setPointBudget(b);
+      });
+
+      const size = document.getElementById('sizeSlider');
+      const sizeVal = document.getElementById('sizeVal');
+      size.addEventListener('input', () => {
+        const v = size.value / 10;
+        sizeVal.textContent = v.toFixed(1);
+        if (pointcloud) pointcloud.material.size = v;
+      });
+
+      const tscale = document.getElementById('thumbScaleSlider');
+      const tscaleVal = document.getElementById('thumbScaleVal');
+      tscale.addEventListener('input', () => {
+        const s = tscale.value / 100;
+        tscaleVal.textContent = s.toFixed(2);
+        cameraEntries.forEach(e => e.group.scale.setScalar(s));
+      });
+
+      document.getElementById('chipEDL').addEventListener('click', e => {
+        const on = !viewer.getEDLEnabled();
+        viewer.setEDLEnabled(on);
+        e.target.classList.toggle('active', on);
+      });
+      document.getElementById('chipCameras').addEventListener('click', e => {
+        if (cameraGroup) cameraGroup.visible = !cameraGroup.visible;
+        e.target.classList.toggle('active', cameraGroup ? cameraGroup.visible : false);
+      });
+      document.getElementById('chipRays').addEventListener('click', e => {
+        if (rayGroup) rayGroup.visible = !rayGroup.visible;
+        e.target.classList.toggle('active', rayGroup ? rayGroup.visible : false);
+      });
+
+      document.getElementById('resetViewBtn').addEventListener('click', () => viewer && viewer.fitToScreen(0.6));
+      document.getElementById('loadThumbsBtn').addEventListener('click', () => loadThumbnails());
+      document.getElementById('reloadBtn').addEventListener('click', loadCloud);
+      document.getElementById('chipOrbit').addEventListener('click', e => {
+        autoOrbitOn = !autoOrbitOn;
+        e.target.classList.toggle('active', autoOrbitOn);
+      });
+      document.getElementById('chipTour').addEventListener('click', e => {
+        const on = !tourTimer;
+        setTour(on);
+        e.target.classList.toggle('active', on);
+      });
+      document.getElementById('chipDome').addEventListener('click', e => {
+        explodeMode = explodeMode === 'dome' ? 'lift' : 'dome';
+        e.target.classList.toggle('active', explodeMode === 'dome');
+        applyExplode(Number(document.getElementById('explodeSlider').value) / 100);
+      });
+      document.getElementById('chipReveal').addEventListener('click', e => {
+        if (revealTimer) stopReveal(false);
+        else { startReveal(); e.target.classList.add('active'); }
+      });
+
+      document.getElementById('fsBtn').addEventListener('click', () => {
+        const el = document.getElementById('viewerWrap');
+        if (!document.fullscreenElement) { (el.requestFullscreen || el.webkitRequestFullscreen || (() => {})).call(el); }
+        else { (document.exitFullscreen || document.webkitExitFullscreen || (() => {})).call(document); }
+      });
+      document.getElementById('hudToggleBtn').addEventListener('click', e => {
+        const hud = document.getElementById('viewerHud');
+        const legend = document.querySelector('.viewer-legend');
+        const hidden = hud.style.display === 'none';
+        hud.style.display = hidden ? '' : 'none';
+        if (legend) legend.style.display = hidden ? '' : 'none';
+        e.target.textContent = hidden ? 'Hide Menu (M)' : 'Show Menu (M)';
+      });
+
+      // Hotkeys: M = toggle menu, R = reveal track (ignored while typing in inputs).
+      window.addEventListener('keydown', e => {
+        const t = e.target;
+        if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT')) return;
+        if (e.ctrlKey || e.metaKey || e.altKey) return;
+        const k = e.key.toLowerCase();
+        if (k === 'm') { e.preventDefault(); document.getElementById('hudToggleBtn').click(); }
+        else if (k === 'r') { e.preventDefault(); document.getElementById('chipReveal').click(); }
+      });
+    }
+
+    // ---- Site toggle (Random vs Fixed demo bundle) ----
+    function bindSiteUi() {
+      document.getElementById('cardTitle').textContent = `Full-resolution point cloud + source cameras (${SITE_PRESETS[SITE_KEY].label})`;
+      document.getElementById('cloudInput').value = CFG.cloudDir;
+      document.getElementById('camerasInput').value = CFG.camerasJson;
+      document.getElementById('siteRandomBtn').classList.toggle('active', SITE_KEY === 'random');
+      document.getElementById('siteFixedBtn').classList.toggle('active', SITE_KEY === 'fixed');
+      function goToSite(key) {
+        if (key === SITE_KEY) return;
+        const next = new URLSearchParams(location.search);
+        next.set('site', key);
+        ['cloud', 'cameras', 'images', 'thumbs', 'metadata'].forEach(k => next.delete(k));
+        location.search = next.toString();
+      }
+      document.getElementById('siteRandomBtn').addEventListener('click', () => goToSite('random'));
+      document.getElementById('siteFixedBtn').addEventListener('click', () => goToSite('fixed'));
+    }
+
+    // ---- Boot ----
+    (async function boot() {
+      resizeOverlay();
+      overlayLoop();
+      bindSiteUi();
+      try {
+        await loadPotreeEngine();
+      } catch (err) {
+        setStatus(`Potree engine failed to load. Check libs/potree2 or set ?potreeBase=URL. (${err.message})`, true);
+        return;
+      }
+      if (typeof Potree === 'undefined') {
+        setStatus('Potree engine did not initialize (global Potree missing).', true);
+        return;
+      }
+      setStatus('Potree engine ready. Initializing scene...');
+      initPotree();
+      bindUi();
+      setupPicking();
+      loadCloud();
+    })();
+  </script>
+</body>
+</html>

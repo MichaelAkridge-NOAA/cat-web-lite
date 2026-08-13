@@ -1,0 +1,871 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>CAT Lite - COG Explainer</title>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+
+  <style>
+    :root {
+      --ink: #0f2b46;
+      --ink-soft: #355877;
+      --foam: #f6fbff;
+      --panel: rgba(255, 255, 255, 0.96);
+      --accent: #1769aa;
+      --accent-2: #1f8f84;
+      --warn: #f59f00;
+      --tile: #20435f;
+      --tile-active: #f59f00;
+      --border: #d8e6f2;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 12% 8%, rgba(23, 105, 170, 0.15), transparent 40%),
+        radial-gradient(circle at 88% 78%, rgba(31, 143, 132, 0.18), transparent 34%),
+        linear-gradient(180deg, #e7f2fa 0%, #f6fbff 100%);
+      min-height: 100vh;
+    }
+
+    .shell {
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 14px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .navbar {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 4px 18px rgba(17, 44, 70, 0.1);
+      padding: 10px 14px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .brand img {
+      width: 32px;
+      height: 32px;
+      object-fit: contain;
+    }
+
+    .nav-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      border: 0;
+      border-radius: 8px;
+      padding: 8px 12px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      text-decoration: none;
+      display: inline-block;
+      transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(17, 44, 70, 0.14);
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-secondary {
+      background: #eef6ff;
+      color: var(--accent);
+      border: 1px solid #cfe3f8;
+    }
+
+    .workspace {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 360px;
+      gap: 14px;
+      align-items: start;
+    }
+
+    .map-card,
+    .panel,
+    .storyboard {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      box-shadow: 0 4px 18px rgba(17, 44, 70, 0.08);
+    }
+
+    .map-card {
+      overflow: hidden;
+    }
+
+    .card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      padding: 10px 12px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .card-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--ink);
+    }
+
+    .map-controls {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      flex-wrap: wrap;
+      width: 100%;
+    }
+
+    .map-controls input {
+      flex: 1;
+      min-width: 200px;
+      border: 1px solid #c4d9ec;
+      border-radius: 7px;
+      padding: 7px 9px;
+      font-size: 12px;
+      color: #12324e;
+      background: #fff;
+    }
+
+    #map {
+      width: 100%;
+      height: 58vh;
+      min-height: 360px;
+      background: #d4e8f8;
+    }
+
+    .panel {
+      padding: 12px;
+      display: grid;
+      gap: 12px;
+      position: sticky;
+      top: 14px;
+    }
+
+    .section-title {
+      font-size: 13px;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+      color: var(--ink-soft);
+      font-weight: 700;
+      margin-bottom: 6px;
+    }
+
+    .data-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 7px;
+    }
+
+    .stat {
+      border: 1px solid #d9e9f6;
+      border-radius: 8px;
+      padding: 8px;
+      background: #fbfdff;
+    }
+
+    .stat-key {
+      font-size: 10px;
+      text-transform: uppercase;
+      color: #5e7b94;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+
+    .stat-value {
+      font-size: 14px;
+      color: var(--ink);
+      font-weight: 700;
+    }
+
+    .tile-inspector {
+      border: 1px solid #d9e6f3;
+      border-radius: 10px;
+      overflow: hidden;
+      background: #0f2f4b;
+      position: relative;
+    }
+
+    .tile-inspector img {
+      display: block;
+      width: 100%;
+      height: 190px;
+      object-fit: cover;
+      background: repeating-conic-gradient(#eef5fb 0% 25%, #dbe9f5 0% 50%) 50% / 22px 22px;
+    }
+
+    .tile-inspector .tile-coord {
+      position: absolute;
+      left: 8px;
+      bottom: 8px;
+      background: rgba(15, 47, 75, 0.82);
+      color: #d7ecff;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 11px;
+      padding: 3px 7px;
+      border-radius: 6px;
+      letter-spacing: 0.02em;
+    }
+
+    .tile-neighborhood-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4px;
+    }
+
+    .tile-cell {
+      position: relative;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid #d0dfec;
+      aspect-ratio: 1 / 1;
+      background: repeating-conic-gradient(#eef5fb 0% 25%, #dbe9f5 0% 50%) 50% / 16px 16px;
+    }
+
+    .tile-cell img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .tile-cell.center {
+      border-color: #f0b400;
+      box-shadow: 0 0 0 2px rgba(240, 180, 0, 0.45) inset;
+    }
+
+    .tile-cell .xy {
+      position: absolute;
+      left: 2px;
+      bottom: 2px;
+      font-size: 9px;
+      font-family: Consolas, "Courier New", monospace;
+      color: #f4faff;
+      background: rgba(15, 47, 75, 0.7);
+      padding: 1px 4px;
+      border-radius: 4px;
+    }
+
+    .pyramid-stack {
+      display: grid;
+      gap: 8px;
+    }
+
+    .pyramid-row {
+      display: grid;
+      grid-template-columns: 84px 1fr;
+      gap: 10px;
+      align-items: center;
+      border: 1px solid #d9e6f3;
+      border-radius: 10px;
+      padding: 8px;
+      background: #fff;
+      transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
+    }
+
+    .pyramid-row.active {
+      border-color: #f0b400;
+      background: #fffdf3;
+      box-shadow: 0 8px 18px rgba(240, 180, 0, 0.18);
+      transform: translateX(2px) scale(1.01);
+    }
+
+    .pyramid-thumb {
+      position: relative;
+      width: 84px;
+      height: 84px;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid #cfe0f0;
+      background: repeating-conic-gradient(#eef5fb 0% 25%, #dbe9f5 0% 50%) 50% / 16px 16px;
+    }
+
+    .pyramid-thumb img {
+      display: block;
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+
+    .pyramid-thumb .z-badge {
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      font-size: 9px;
+      font-weight: 700;
+      color: #0f2f4b;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 1px 5px;
+      border-radius: 5px;
+    }
+
+    .pyramid-meta {
+      display: grid;
+      gap: 3px;
+    }
+
+    .pyramid-tier-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: #143958;
+    }
+
+    .pyramid-tier-sub {
+      font-size: 11px;
+      color: #5e7c98;
+    }
+
+    .pyramid-tier-coord {
+      font-size: 11px;
+      font-family: Consolas, "Courier New", monospace;
+      color: #1c6a7d;
+    }
+
+    .status {
+      font-size: 12px;
+      color: #426887;
+      background: #ecf6ff;
+      border: 1px solid #d6e9f8;
+      border-radius: 8px;
+      padding: 8px;
+      line-height: 1.4;
+    }
+
+    .status.error {
+      background: #fff5f5;
+      border-color: #f3cccc;
+      color: #8a2d2d;
+    }
+
+    .storyboard {
+      padding: 12px;
+      display: grid;
+      gap: 10px;
+    }
+
+    .storyboard-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .storyboard-text {
+      font-size: 13px;
+      color: #355777;
+      max-width: 920px;
+      line-height: 1.55;
+    }
+
+    .manifest-controls {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+
+    .manifest-controls input {
+      min-width: 260px;
+      border: 1px solid #c4d9ec;
+      border-radius: 7px;
+      padding: 7px 9px;
+      font-size: 12px;
+    }
+
+    .metadata-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+      gap: 8px;
+      margin-top: 8px;
+    }
+
+    .meta-card {
+      border: 1px solid #d8e6f2;
+      border-radius: 8px;
+      background: #fff;
+      padding: 8px;
+    }
+
+    .meta-key {
+      font-size: 10px;
+      letter-spacing: 0.05em;
+      text-transform: uppercase;
+      color: #5d7c98;
+      margin-bottom: 5px;
+    }
+
+    .meta-value {
+      font-size: 14px;
+      color: #143d5f;
+      font-weight: 700;
+      line-height: 1.3;
+      word-break: break-word;
+    }
+
+    .sample-images {
+      margin-top: 10px;
+      padding: 8px;
+      border: 1px dashed #bfd8eb;
+      border-radius: 8px;
+      background: #f4fbff;
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 11px;
+      line-height: 1.4;
+      color: #345875;
+      white-space: pre-wrap;
+    }
+
+    .timeline {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+      gap: 10px;
+    }
+
+    .timeline-card {
+      border: 1px solid #d8e6f2;
+      border-radius: 9px;
+      overflow: hidden;
+      background: #fff;
+      display: grid;
+      grid-template-rows: 150px auto;
+    }
+
+    .timeline-card img {
+      width: 100%;
+      height: 150px;
+      object-fit: cover;
+      background: #e6f1fa;
+    }
+
+    .timeline-body {
+      padding: 9px;
+      display: grid;
+      gap: 5px;
+    }
+
+    .timeline-stage {
+      font-size: 12px;
+      color: #1b4b70;
+      font-weight: 700;
+    }
+
+    .timeline-caption {
+      font-size: 12px;
+      color: #4f6f8a;
+      line-height: 1.45;
+    }
+
+    .overlap-strip {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 4px;
+    }
+
+    .overlap-item {
+      min-width: 170px;
+      border: 1px solid #d8e6f2;
+      border-radius: 8px;
+      overflow: hidden;
+      background: #fff;
+    }
+
+    .overlap-item img {
+      width: 100%;
+      height: 108px;
+      object-fit: cover;
+      display: block;
+      background: #e5eff8;
+    }
+
+    .overlap-caption {
+      padding: 6px 8px;
+      font-size: 11px;
+      color: #436683;
+    }
+
+    @media (max-width: 1180px) {
+      .workspace {
+        grid-template-columns: 1fr;
+      }
+
+      .panel {
+        position: static;
+      }
+    }
+
+    @media (max-width: 760px) {
+      #map {
+        height: 50vh;
+      }
+
+      .map-controls input,
+      .manifest-controls input {
+        min-width: 100%;
+      }
+
+      .manifest-controls,
+      .map-controls {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <nav class="navbar">
+      <div class="brand">
+        <img src="images/logo_lite.png" alt="CAT Lite logo">
+        <span>CAT Lite COG Explainer</span>
+      </div>
+      <div class="nav-actions">
+        <a class="btn btn-secondary" href="index.html">Back to Annotation Tool</a>
+        <a class="btn btn-primary" href="potree_multiview.html">Photogrammetry Multi-View</a>
+        <a class="btn btn-secondary" href="https://github.com/MichaelAkridge-NOAA/cat" target="_blank">Full CAT Repo</a>
+      </div>
+    </nav>
+
+    <section class="workspace">
+      <div class="map-card">
+        <div class="card-header">
+          <div class="card-title">COG map viewer and live tile explanation</div>
+          <div class="map-controls">
+            <input id="cogPathInput" value="gs://nmfs_odp_pifsc/PIFSC/ESD/ARP/StRS_Sites_Products/orthomosaic_cog/2025_GUA-2838_mos_cog.tif" aria-label="COG path">
+            <button class="btn btn-primary" id="loadCogBtn">Load COG</button>
+            <button class="btn btn-secondary" id="loadDemoBtn">Use Demo</button>
+          </div>
+        </div>
+        <div id="map"></div>
+      </div>
+
+      <aside class="panel">
+        <div>
+          <div class="section-title">Viewer State</div>
+          <div class="data-grid">
+            <div class="stat">
+              <div class="stat-key">Leaflet Zoom</div>
+              <div class="stat-value" id="zoomValue">-</div>
+            </div>
+            <div class="stat">
+              <div class="stat-key">Pyramid Tier</div>
+              <div class="stat-value" id="tierValue">-</div>
+            </div>
+            <div class="stat">
+              <div class="stat-key">Center Tile X</div>
+              <div class="stat-value" id="tileXValue">-</div>
+            </div>
+            <div class="stat">
+              <div class="stat-key">Center Tile Y</div>
+              <div class="stat-value" id="tileYValue">-</div>
+            </div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-title">Center Tile (live imagery)</div>
+          <div id="tileInspector" class="tile-inspector">
+            <img id="tileInspectorImg" alt="Center COG tile">
+            <div class="tile-coord" id="tileInspectorCoord">z- / x- / y-</div>
+          </div>
+        </div>
+
+        <div>
+          <div class="section-title">3 x 3 Tile Neighborhood</div>
+          <div id="tileNeighborhood" class="tile-neighborhood-grid"></div>
+        </div>
+
+        <div>
+          <div class="section-title">Exploded Pyramid (real tiles)</div>
+          <div id="explodedView" class="pyramid-stack"></div>
+        </div>
+
+        <div id="mapStatus" class="status">Ready. Load a COG to begin.</div>
+      </aside>
+    </section>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script>
+    const TILE_SERVER_URL = 'https://connect.fisheries.noaa.gov/cat-tiles';
+    const DEMO_COG = 'gs://nmfs_odp_pifsc/PIFSC/ESD/ARP/StRS_Sites_Products/orthomosaic_cog/2025_GUA-2838_mos_cog.tif';
+
+    const EXPLAINER_CONFIG = {
+      tileSize: 256,
+      tierDefs: [
+        { name: 'Overview 16x', minZoom: 0, maxZoom: 11, scaleHint: 'largest footprint' },
+        { name: 'Overview 8x', minZoom: 12, maxZoom: 13, scaleHint: 'broad context' },
+        { name: 'Overview 4x', minZoom: 14, maxZoom: 15, scaleHint: 'regional detail' },
+        { name: 'Overview 2x', minZoom: 16, maxZoom: 17, scaleHint: 'feature detail' },
+        { name: 'Native 1x', minZoom: 18, maxZoom: 30, scaleHint: 'maximum detail' }
+      ],
+      assetBaseUrl: '',
+      defaultManifestPath: 'https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/manifest.json',
+      defaultMetadataPath: 'https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/metadata_summary.json'
+    };
+
+    let map;
+    let cogLayer = null;
+    let updateQueued = false;
+    let currentEncodedCogPath = null;
+    let tileHighlight = null;
+
+    function getTierByZoom(zoom) {
+      const z = Math.round(zoom);
+      return EXPLAINER_CONFIG.tierDefs.find(t => z >= t.minZoom && z <= t.maxZoom) || EXPLAINER_CONFIG.tierDefs[0];
+    }
+
+    function initMap() {
+      map = L.map('map', {
+        center: [21.5, -158.0],
+        zoom: 8,
+        maxZoom: 2000,
+        zoomControl: true
+      });
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: 'OpenStreetMap contributors',
+        maxZoom: 19
+      }).addTo(map);
+
+      map.on('zoom move', queueSidebarUpdate);
+      map.on('zoomend moveend', updateCogSidebar);
+      updateCogSidebar();
+    }
+
+    function queueSidebarUpdate() {
+      if (updateQueued) {
+        return;
+      }
+      updateQueued = true;
+      requestAnimationFrame(() => {
+        updateQueued = false;
+        updateCogSidebar();
+      });
+    }
+
+    async function loadCogFromPath(gcsPath) {
+      const statusEl = document.getElementById('mapStatus');
+
+      if (!gcsPath || !gcsPath.startsWith('gs://')) {
+        statusEl.className = 'status error';
+        statusEl.textContent = 'Please provide a valid gs:// path.';
+        return;
+      }
+
+      try {
+        statusEl.className = 'status';
+        statusEl.textContent = 'Loading TileJSON...';
+
+        const encodedPath = encodeURIComponent(gcsPath);
+        const tilejsonResponse = await fetch(`${TILE_SERVER_URL}/WebMercatorQuad/tilejson.json?url=${encodedPath}`);
+        if (!tilejsonResponse.ok) {
+          throw new Error(`TileJSON request failed (${tilejsonResponse.status})`);
+        }
+
+        const tilejson = await tilejsonResponse.json();
+        const bounds = tilejson.bounds;
+        const leafletBounds = [[bounds[1], bounds[0]], [bounds[3], bounds[2]]];
+
+        if (cogLayer && map.hasLayer(cogLayer)) {
+          map.removeLayer(cogLayer);
+        }
+
+        const tileUrl = `${TILE_SERVER_URL}/tiles/WebMercatorQuad/{z}/{x}/{y}.png?url=${encodedPath}`;
+        cogLayer = L.tileLayer(tileUrl, {
+          maxZoom: 2000,
+          opacity: 1,
+          attribution: gcsPath.split('/').pop()
+        }).addTo(map);
+        currentEncodedCogPath = encodedPath;
+
+        map.fitBounds(leafletBounds, { padding: [30, 30], maxZoom: 24 });
+        statusEl.className = 'status';
+        statusEl.textContent = `Loaded: ${gcsPath.split('/').pop()}`;
+        updateCogSidebar();
+      } catch (error) {
+        statusEl.className = 'status error';
+        statusEl.textContent = `COG load failed: ${error.message}`;
+      }
+    }
+
+    function tileTemplate() {
+      if (currentEncodedCogPath) {
+        return {
+          base: `${TILE_SERVER_URL}/tiles/WebMercatorQuad`,
+          suffix: `.png?url=${currentEncodedCogPath}`,
+          source: 'COG'
+        };
+      }
+      return {
+        base: 'https://tile.openstreetmap.org',
+        suffix: '.png',
+        source: 'OSM base map'
+      };
+    }
+
+    function buildTileUrl(z, x, y) {
+      const t = tileTemplate();
+      return `${t.base}/${z}/${x}/${y}${t.suffix}`;
+    }
+
+    function buildTileImg(z, x, y) {
+      const url = buildTileUrl(z, x, y);
+      return `<img src="${url}" loading="lazy" alt="tile ${z}/${x}/${y}" onerror="this.style.visibility='hidden'">`;
+    }
+
+    function centerTileAt(z) {
+      const p = map.project(map.getCenter(), z);
+      return {
+        x: Math.floor(p.x / EXPLAINER_CONFIG.tileSize),
+        y: Math.floor(p.y / EXPLAINER_CONFIG.tileSize)
+      };
+    }
+
+    function updateCogSidebar() {
+      if (!map) {
+        return;
+      }
+
+      const zoom = map.getZoom();
+      const baseZ = Math.max(0, Math.round(zoom));
+      const tier = getTierByZoom(baseZ);
+      const { x: tileX, y: tileY } = centerTileAt(baseZ);
+
+      document.getElementById('zoomValue').textContent = zoom.toFixed(2);
+      document.getElementById('tierValue').textContent = tier.name;
+      document.getElementById('tileXValue').textContent = tileX;
+      document.getElementById('tileYValue').textContent = tileY;
+
+      renderTileInspector(baseZ, tileX, tileY);
+      renderTileNeighborhood(baseZ, tileX, tileY);
+      renderExplodedPyramid(baseZ);
+      updateTileHighlight(baseZ, tileX, tileY);
+
+      const statusEl = document.getElementById('mapStatus');
+      const src = tileTemplate().source;
+      statusEl.className = 'status';
+      statusEl.textContent = `Live: real ${src} tiles. Zoom ${zoom.toFixed(1)} maps to ${tier.name}. Center tile z${baseZ}/${tileX}/${tileY}.`;
+    }
+
+    function renderTileInspector(z, x, y) {
+      const img = document.getElementById('tileInspectorImg');
+      const coord = document.getElementById('tileInspectorCoord');
+      img.style.visibility = 'visible';
+      img.onerror = () => { img.style.visibility = 'hidden'; };
+      img.src = buildTileUrl(z, x, y);
+      coord.textContent = `z${z} / x${x} / y${y}`;
+    }
+
+    function renderTileNeighborhood(z, cx, cy) {
+      const container = document.getElementById('tileNeighborhood');
+      const cells = [];
+      for (let y = cy - 1; y <= cy + 1; y++) {
+        for (let x = cx - 1; x <= cx + 1; x++) {
+          const centerClass = (x === cx && y === cy) ? 'center' : '';
+          cells.push(`
+            <div class="tile-cell ${centerClass}">
+              ${buildTileImg(z, x, y)}
+              <span class="xy">${x},${y}</span>
+            </div>
+          `);
+        }
+      }
+      container.innerHTML = cells.join('');
+    }
+
+    function renderExplodedPyramid(baseZ) {
+      const container = document.getElementById('explodedView');
+      const offsets = [-4, -3, -2, -1, 0];
+
+      container.innerHTML = offsets.map(off => {
+        const z = Math.max(0, baseZ + off);
+        const { x, y } = centerTileAt(z);
+        const tier = getTierByZoom(z);
+        const active = off === 0;
+
+        return `
+          <div class="pyramid-row ${active ? 'active' : ''}">
+            <div class="pyramid-thumb">
+              ${buildTileImg(z, x, y)}
+              <span class="z-badge">z${z}</span>
+            </div>
+            <div class="pyramid-meta">
+              <span class="pyramid-tier-name">${tier.name}${active ? ' \u2022 current' : ''}</span>
+              <span class="pyramid-tier-sub">${tier.scaleHint}</span>
+              <span class="pyramid-tier-coord">tile ${z}/${x}/${y}</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function updateTileHighlight(z, x, y) {
+      const ts = EXPLAINER_CONFIG.tileSize;
+      const nw = map.unproject([x * ts, y * ts], z);
+      const se = map.unproject([(x + 1) * ts, (y + 1) * ts], z);
+      const bounds = [[nw.lat, nw.lng], [se.lat, se.lng]];
+
+      if (!tileHighlight) {
+        tileHighlight = L.rectangle(bounds, {
+          color: '#f0b400',
+          weight: 2,
+          fill: false,
+          dashArray: '6 4',
+          interactive: false
+        }).addTo(map);
+      } else {
+        tileHighlight.setBounds(bounds);
+      }
+    }
+
+    function bindUi() {
+      document.getElementById('loadCogBtn').addEventListener('click', () => {
+        loadCogFromPath(document.getElementById('cogPathInput').value.trim());
+      });
+
+      document.getElementById('loadDemoBtn').addEventListener('click', () => {
+        document.getElementById('cogPathInput').value = DEMO_COG;
+        loadCogFromPath(DEMO_COG);
+      });
+    }
+
+    initMap();
+    bindUi();
+  </script>
+</body>
+</html>

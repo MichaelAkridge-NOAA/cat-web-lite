@@ -15,6 +15,10 @@ desktop.ini
 *.log
 *.bak
 
+
 # User-specific data (if you add local storage exports)
 exports/
 temp/
+bundle_v2/
+gcs-cors.json
+local_README.md

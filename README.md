@@ -10,6 +10,7 @@ A simplified, browser-based coral annotation tool for quick demo & fieldwork wit
 - **Interactive Map Interface** - Annotate directly on georeferenced COG imagery
 - **Basic Drawing Tools** - Lines, rectangles, and polygons
 - **Import/Export** - Save and load projects as JSON
+- **COG Explainer Page** - Separate page showing live zoom-to-tile behavior and photogrammetry storyboard
 
 ## Lite vs Full Version
 
@@ -33,4 +34,4 @@ A simplified, browser-based coral annotation tool for quick demo & fieldwork wit
 This repository is a scientific product and is not official communication of the National Oceanic and Atmospheric Administration, or the United States Department of Commerce. All NOAA GitHub project content is provided on an ‘as is’ basis and the user assumes responsibility for its use. Any claims against the Department of Commerce or Department of Commerce bureaus stemming from the use of this GitHub project will be governed by all applicable Federal law. Any reference to specific commercial products, processes, or services by service mark, trademark, manufacturer, or otherwise, does not constitute or imply their endorsement, recommendation or favoring by the Department of Commerce. The Department of Commerce seal and logo, or the seal and logo of a DOC bureau, shall not be used in any manner to imply endorsement of any commercial product or activity by DOC or the United States Government.
 
 #### License
-This repository's code is available under the terms specified in [LICENSE.md](./LICENSE.md).
+This repository's code is available under the terms specified in [LICENSE.md](./LICENSE.md)
