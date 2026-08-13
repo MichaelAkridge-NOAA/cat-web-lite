@@ -209,6 +209,7 @@
             <span class="chip" id="chipDome">Dome</span>
             <span class="chip" id="chipReveal" title="Reveal along image track (R)">Reveal Track (R)</span>
             <span class="chip" id="chipTour">Fly Tour</span>
+            <span class="chip" id="chipFullRes" title="Texture camera frustums with full-resolution photos instead of thumbnails">Full-Res Photos</span>
           </div>
         </div>
 
@@ -284,7 +285,14 @@
       ambientCameras: 150,
       previewThumbs: 10,
       thumbMaxPx: 256,
-      defaultExplode: 0.25
+      defaultExplode: 0.25,
+      // Reveal Track tuning: bigger sites (more sampled cameras) get more steps (longer, denser reveal)
+      // and a finer visibility decimation, instead of always animating in ~80 fixed steps.
+      revealCamerasPerStep: Number(params.get('revealCamerasPerStep')) || 6,
+      revealMinSteps: Number(params.get('revealMinSteps')) || 60,
+      revealMaxSteps: Number(params.get('revealMaxSteps')) || 300,
+      revealIntervalMs: Number(params.get('revealMs')) || 130,
+      revealVisibleTarget: Number(params.get('revealVisibleTarget')) || 140
     };
 
     const OVERLAY_THREE = window.THREE; // CDN THREE, reserved for the overlay scene
@@ -360,6 +368,7 @@
     let revealTimer = null;
     let revealBox = null;
     let revealIdx = 0;
+    let useFullResTextures = false;
 
     function resizeOverlay() {
       const wrap = document.getElementById('viewerWrap');
@@ -670,16 +679,20 @@
       setRevealRange(1);
       viewer.fitToScreen(0.85);
       const total = cameraEntries.length;
-      const adv = Math.max(1, Math.round(total / 80));
+      // Scale reveal length/density to the site: more sampled cameras => more steps (longer reveal)
+      // and finer decimation (more visible along the way), capped so huge sites stay watchable.
+      const steps = Math.min(CFG.revealMaxSteps, Math.max(CFG.revealMinSteps, Math.round(total / CFG.revealCamerasPerStep)));
+      const adv = Math.max(1, Math.round(total / steps));
+      const decimate = Math.max(1, Math.round(total / CFG.revealVisibleTarget));
       revealTimer = setInterval(() => {
         revealIdx = Math.min(total, revealIdx + adv);
         setRevealRange(revealIdx);
-        for (let i = 0; i < revealIdx; i++) { if (i % 4 === 0) { cameraEntries[i].group.visible = true; cameraEntries[i].ray.visible = true; } }
+        for (let i = 0; i < revealIdx; i++) { if (i % decimate === 0) { cameraEntries[i].group.visible = true; cameraEntries[i].ray.visible = true; } }
         const cur = cameraEntries[Math.min(revealIdx - 1, total - 1)];
         highlightEntry(cur); showPhoto(cur);
         setStatus(`Revealing along image track: ${revealIdx} / ${total}`);
         if (revealIdx >= total) stopReveal(true);
-      }, 130);
+      }, CFG.revealIntervalMs);
     }
     function stopReveal(finished) {
       if (revealTimer) { clearInterval(revealTimer); revealTimer = null; }
@@ -740,7 +753,7 @@
       if (tex) return tex;
       return loadImageAsTexture(fallbackUrl);
     }
-    async function loadThumbnails(maxCount) {
+    async function loadThumbnails(maxCount, force) {
       if (cameraEntries.length === 0) return;
       const count = Math.min(maxCount || cameraEntries.length, cameraEntries.length);
       const step = Math.max(1, Math.floor(cameraEntries.length / count));
@@ -749,10 +762,13 @@
       let done = 0;
       for (let i = 0; i < cameraEntries.length; i += step) {
         const entry = cameraEntries[i];
-        if (entry.plane.material.map) continue;
+        if (entry.plane.material.map && !force) continue;
         const thumbName = entry.name.replace(/\.[^./]+$/, '.JPG'); // build_thumbnails.py always writes uppercase .JPG
-        const tex = await loadThumbTexture(`${thumbDir}/${thumbName}`, `${imgDir}/${entry.name}`);
+        const tex = useFullResTextures
+          ? await loadImageAsTexture(`${imgDir}/${entry.name}`)
+          : await loadThumbTexture(`${thumbDir}/${thumbName}`, `${imgDir}/${entry.name}`);
         if (tex) {
+          if (entry.plane.material.map) entry.plane.material.map.dispose();
           entry.plane.material.map = tex;
           entry.plane.material.color.set(0xffffff);
           entry.plane.material.opacity = 0.98;
@@ -1005,6 +1021,13 @@
       document.getElementById('resetViewBtn').addEventListener('click', () => viewer && viewer.fitToScreen(0.6));
       document.getElementById('loadThumbsBtn').addEventListener('click', () => loadThumbnails());
       document.getElementById('reloadBtn').addEventListener('click', loadCloud);
+      document.getElementById('chipFullRes').addEventListener('click', e => {
+        useFullResTextures = !useFullResTextures;
+        e.target.classList.toggle('active', useFullResTextures);
+        const visibleCount = cameraEntries.filter(en => en.group.visible && en.plane.material.map).length;
+        setStatus(useFullResTextures ? 'Reloading visible frustums with full-resolution photos (slower)...' : 'Reloading visible frustums with thumbnails...');
+        loadThumbnails(Math.max(visibleCount, CFG.previewThumbs), true);
+      });
       document.getElementById('chipOrbit').addEventListener('click', e => {
         autoOrbitOn = !autoOrbitOn;
         e.target.classList.toggle('active', autoOrbitOn);
