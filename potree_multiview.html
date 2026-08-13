@@ -725,6 +725,7 @@
     function loadImageAsTexture(url) {
       return new Promise(resolve => {
         const img = new Image();
+        img.crossOrigin = 'anonymous'; // required so cross-origin GCS images don't taint the WebGL texture
         img.onload = () => {
           const tex = new T.Texture(img);
           tex.needsUpdate = true;
