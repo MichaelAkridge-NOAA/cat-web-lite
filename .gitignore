@@ -20,5 +20,7 @@ desktop.ini
 exports/
 temp/
 bundle_v2/
+bundle_v2_fixed/
 gcs-cors.json
 local_README.md
+potree_multiview_offline.html

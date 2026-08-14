@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<meta name="ext-resource-dependency" content="./ortho.png" data-resource-id="ortho" />
+<meta name="ext-resource-dependency" content="./cat-annotation.png" data-resource-id="cat" />
+<meta name="ext-resource-dependency" content="https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/colmap/images/IMG_6051_0.jpg" data-resource-id="photo0" />
+<meta name="ext-resource-dependency" content="https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/colmap/images/IMG_6052_1.jpg" data-resource-id="photo1" />
+<meta name="ext-resource-dependency" content="https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/colmap/images/IMG_6053_2.jpg" data-resource-id="photo2" />
+<meta name="ext-resource-dependency" content="https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/colmap/images/IMG_6054_3.jpg" data-resource-id="photo3" />
+<meta name="ext-resource-dependency" content="https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/colmap/images/IMG_6055_4.jpg" data-resource-id="photo4" />
+<meta name="ext-resource-dependency" content="https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/colmap/images/IMG_6061_10.jpg" data-resource-id="photo5" />
+<meta name="ext-resource-dependency" content="https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/colmap/images/IMG_6071_20.jpg" data-resource-id="photo6" />
+<meta name="ext-resource-dependency" content="https://storage.googleapis.com/nmfs_odp_pifsc/PIFSC/ESD/ARP/pifsc-ai-data-repository/sfm/osi_demo/AGR-455/bundle_v2/colmap/images/IMG_6081_30.jpg" data-resource-id="photo7" />
+<template id="__bundler_thumbnail" data-bg-color="#02101c">
+  <svg viewBox="0 0 1200 800" xmlns="http://www.w3.org/2000/svg">
+    <rect width="1200" height="800" fill="#02101c" />
+    <rect x="360" y="240" width="480" height="320" rx="8" fill="#0e4260" stroke="#f59f00" stroke-width="10" />
+    <circle cx="600" cy="400" r="70" fill="#1f8f84" />
+    <rect x="360" y="580" width="480" height="14" rx="7" fill="#2f8fd0" />
+  </svg>
+</template>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" />
+<style>
+  html, body { margin: 0; padding: 0; background: #02101c; }
+  a { color: #2f8fd0; text-decoration: none; }
+  a:hover { color: #f59f00; }
+</style>
+<script>window.OM_SCENES = '[{"name":"Descent","dur":5,"desc":"Underwater reef photo fades up and the title settles"},{"name":"Transect","dur":7,"desc":"Camera tilts to a plan view; the diver swims a gridded transect dropping photo footprints"},{"name":"Overlap","dur":6,"desc":"Four real frames stack to show about 70 percent overlap"},{"name":"Alignment","dur":8,"desc":"Keypoints match between two frames, then camera poses appear along the swim line"},{"name":"Cloud","dur":7,"desc":"A dense point cloud rises into 3D relief and a mesh draws over it"},{"name":"Ortho","dur":6,"desc":"The surface flattens to top-down and image tiles stitch into the orthomosaic"},{"name":"Dem","dur":6,"desc":"The same map recolors to an elevation ramp with a depth profile"},{"name":"Tiles","dur":5,"desc":"The map splits into cloud-optimized GeoTIFF zoom tiers"},{"name":"Annotate","dur":6,"desc":"A polygon is drawn around a coral colony in the annotation tool"},{"name":"Close","dur":5,"desc":"The three deliverables appear over the reef and the frame fades to dark"}]';</script>
+<script>window.OM_PLAYBACK = '{"mode":"loop"}';</script>
+<script>window.TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "motionEditor": true,
+  "labels": true,
+  "accent": "#f59f00"
+}/*EDITMODE-END*/;</script>
+</helmet>
+<x-import component-from-global-scope="ReefExplainer" from="./animations-v3.jsx ./tweaks-panel.jsx ./reef-scene.jsx" hint-size="100%,100%"></x-import>
+</x-dc>
+</body>
+</html>
